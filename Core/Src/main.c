@@ -24,6 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "sonar.h"
+
+#include "max7219.h"
+#include "max7219_matrix.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,7 +70,6 @@ static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM3_Init(void);
 void StartDefaultTask(void const * argument);
-void StartSonarTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -118,8 +120,10 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-  SONAR_init(&htim3);
+	MAX7219_MatrixInit(&hspi1, BREAK_LED_CS_GPIO_Port, BREAK_LED_CS_Pin);
+	MAX7219_MatrixUpdate();
 
+	SONAR_init(&htim3);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -143,12 +147,10 @@ int main(void)
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
-  osThreadDef(sonarTask, StartSonarTask, osPriorityNormal, 0, 128);
-  sonarTaskHandle = osThreadCreate(osThread(sonarTask), NULL);
-
-
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  osThreadDef(sonarTask, StartSonarTask, osPriorityNormal, 0, 128);
+  sonarTaskHandle = osThreadCreate(osThread(sonarTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -320,7 +322,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -552,12 +554,48 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-  SONAR_Task_Loop(argument);
+	MAX7219_MatrixSetRow64(0, CHR('B'));
+	MAX7219_MatrixSetRow64(1, CHR('O'));
+	MAX7219_MatrixSetRow64(2, CHR('M'));
+	MAX7219_MatrixSetRow64(3, CHR('B'));
+	MAX7219_MatrixUpdate();
+	HAL_Delay(3000);
 
-  for(;;)
-  {
-	  osDelay(1);
-  }
+	for(int i = 1000; i >= 0; i--)
+	{
+		int temp = (i / 1000) % 10;
+		MAX7219_MatrixSetRow64(0, numbers[temp]);
+		temp = (i / 100) % 10;
+		MAX7219_MatrixSetRow64(1, numbers[temp]);
+		temp = (i / 10) % 10;
+		MAX7219_MatrixSetRow64(2, numbers[temp]);
+		temp = i % 10;
+		MAX7219_MatrixSetRow64(3, numbers[temp]);
+		MAX7219_MatrixUpdate();
+		HAL_Delay(10);
+	}
+
+	MAX7219_MatrixSetRow64(0, CHR('B'));
+	MAX7219_MatrixSetRow64(1, CHR('A'));
+	MAX7219_MatrixSetRow64(2, CHR('N'));
+	MAX7219_MatrixSetRow64(3, CHR('G'));
+	MAX7219_MatrixUpdate();
+	HAL_Delay(3000);
+
+	for(int i = 0; i < 24; i++)
+	{
+		MAX7219_MatrixLShift(1);
+		MAX7219_MatrixUpdate();
+		HAL_Delay(100);
+	}
+
+	for(int i = 0; i < 24; i++)
+	{
+		MAX7219_MatrixRShift(1);
+		MAX7219_MatrixUpdate();
+		HAL_Delay(100);
+	}
+	HAL_Delay(3000);
   /* USER CODE END 5 */
 }
 
