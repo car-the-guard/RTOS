@@ -77,7 +77,7 @@ void StartDefaultTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(int ch){
+int __io_putchar(uint8_t ch){
 	HAL_UART_Transmit(&huart3, &ch, 1, 1000);
     return ch;
 }

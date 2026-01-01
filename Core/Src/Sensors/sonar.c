@@ -9,6 +9,7 @@
 
 #include "sonar.h"
 #include "utils.h"
+#include "cmsis_os.h"
 
 static TIM_HandleTypeDef* SN_htim;
 
