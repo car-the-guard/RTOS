@@ -57,18 +57,32 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define USER_Btn_Pin GPIO_PIN_13
-#define USER_Btn_GPIO_Port GPIOC
+#define SONAR2_TRIGGER_Pin GPIO_PIN_5
+#define SONAR2_TRIGGER_GPIO_Port GPIOE
 #define MCO_Pin GPIO_PIN_0
 #define MCO_GPIO_Port GPIOH
+#define BREAK_LED_SCK_Pin GPIO_PIN_5
+#define BREAK_LED_SCK_GPIO_Port GPIOA
+#define BREAK_LED_MOSI_Pin GPIO_PIN_7
+#define BREAK_LED_MOSI_GPIO_Port GPIOA
 #define LD1_Pin GPIO_PIN_0
 #define LD1_GPIO_Port GPIOB
+#define SONAR1_TRIGGER_Pin GPIO_PIN_12
+#define SONAR1_TRIGGER_GPIO_Port GPIOF
+#define CRASH_EXTI_Pin GPIO_PIN_13
+#define CRASH_EXTI_GPIO_Port GPIOF
+#define SONAR2_ECHO_Pin GPIO_PIN_15
+#define SONAR2_ECHO_GPIO_Port GPIOF
 #define LD3_Pin GPIO_PIN_14
 #define LD3_GPIO_Port GPIOB
 #define STLK_RX_Pin GPIO_PIN_8
 #define STLK_RX_GPIO_Port GPIOD
 #define STLK_TX_Pin GPIO_PIN_9
 #define STLK_TX_GPIO_Port GPIOD
+#define BREAK_LED_CS_Pin GPIO_PIN_14
+#define BREAK_LED_CS_GPIO_Port GPIOD
+#define SONAR1_ECHO_Pin GPIO_PIN_15
+#define SONAR1_ECHO_GPIO_Port GPIOD
 #define USB_PowerSwitchOn_Pin GPIO_PIN_6
 #define USB_PowerSwitchOn_GPIO_Port GPIOG
 #define USB_OverCurrent_Pin GPIO_PIN_7
@@ -77,8 +91,16 @@ void Error_Handler(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define CAN_RX_Pin GPIO_PIN_0
+#define CAN_RX_GPIO_Port GPIOD
+#define CAN_TX_Pin GPIO_PIN_1
+#define CAN_TX_GPIO_Port GPIOD
 #define LD2_Pin GPIO_PIN_7
 #define LD2_GPIO_Port GPIOB
+#define I2C_SCL_Pin GPIO_PIN_8
+#define I2C_SCL_GPIO_Port GPIOB
+#define I2C_SDA_Pin GPIO_PIN_9
+#define I2C_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
