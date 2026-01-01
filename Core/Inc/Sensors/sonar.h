@@ -11,12 +11,25 @@
 #include <main.h>
 #include <stm32f4xx_hal.h>
 
+// 만약 초음파 센서 2개 사용한다면 아래 주석을 해제해주기
+//#define DOUBLE_SONAR
+
+#define TRIG_PORT_0 SONAR0_TRIGGER_GPIO_Port
+#define TRIG_PIN_0  SONAR0_TRIGGER_Pin
+
 #define TRIG_PORT_1 SONAR1_TRIGGER_GPIO_Port
 #define TRIG_PIN_1  SONAR1_TRIGGER_Pin
 
-#define TRIG_PORT_2 SONAR2_TRIGGER_GPIO_Port
-#define TRIG_PIN_2  SONAR2_TRIGGER_Pin
+typedef enum {
+    SONAR_SENSOR_0 = 0,
+    SONAR_SENSOR_1 = 1
+} Sonar_ID;
 
-void HCSR04_Read (void);
+
+extern volatile uint8_t Distance[2];
+
+void SONAR_Process_Interrupt(TIM_HandleTypeDef *htim);
+
+void HCSR04_Read (Sonar_ID);
 
 #endif /* INC_SENSORS_SONAR_H_ */

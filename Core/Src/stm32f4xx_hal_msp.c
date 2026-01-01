@@ -301,7 +301,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     PC6     ------> TIM3_CH1
     PC7     ------> TIM3_CH2
     */
-    GPIO_InitStruct.Pin = SONAR1_ECHO_Pin|SONAR2_ECHO_Pin;
+    GPIO_InitStruct.Pin = SONAR0_ECHO_Pin|SONAR1_ECHO_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -339,7 +339,7 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
     PC6     ------> TIM3_CH1
     PC7     ------> TIM3_CH2
     */
-    HAL_GPIO_DeInit(GPIOC, SONAR1_ECHO_Pin|SONAR2_ECHO_Pin);
+    HAL_GPIO_DeInit(GPIOC, SONAR0_ECHO_Pin|SONAR1_ECHO_Pin);
 
     /* TIM3 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM3_IRQn);

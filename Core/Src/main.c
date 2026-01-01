@@ -22,8 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <sonar.h>
 #include <stdio.h>
+#include "sonar.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,7 +78,6 @@ int __io_putchar(int ch){
     return ch;
 }
 
-extern uint8_t Distance;
 /* USER CODE END 0 */
 
 /**
@@ -381,6 +380,10 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
@@ -443,13 +446,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SONAR2_TRIGGER_GPIO_Port, SONAR2_TRIGGER_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SONAR1_TRIGGER_GPIO_Port, SONAR1_TRIGGER_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SONAR1_TRIGGER_GPIO_Port, SONAR1_TRIGGER_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SONAR0_TRIGGER_GPIO_Port, SONAR0_TRIGGER_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(BREAK_LED_CS_GPIO_Port, BREAK_LED_CS_Pin, GPIO_PIN_RESET);
@@ -457,12 +460,12 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : SONAR2_TRIGGER_Pin */
-  GPIO_InitStruct.Pin = SONAR2_TRIGGER_Pin;
+  /*Configure GPIO pin : SONAR1_TRIGGER_Pin */
+  GPIO_InitStruct.Pin = SONAR1_TRIGGER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(SONAR2_TRIGGER_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(SONAR1_TRIGGER_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
   GPIO_InitStruct.Pin = LD1_Pin|LD3_Pin|LD2_Pin;
@@ -471,12 +474,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : SONAR1_TRIGGER_Pin */
-  GPIO_InitStruct.Pin = SONAR1_TRIGGER_Pin;
+  /*Configure GPIO pin : SONAR0_TRIGGER_Pin */
+  GPIO_InitStruct.Pin = SONAR0_TRIGGER_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(SONAR1_TRIGGER_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(SONAR0_TRIGGER_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : CRASH_EXTI_Pin */
   GPIO_InitStruct.Pin = CRASH_EXTI_Pin;
@@ -510,7 +513,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM3){
+		SONAR_Process_Interrupt(htim);
+	}
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -526,8 +534,8 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	  HCSR04_Read();
-	  printf("%d cm\r\n",Distance);
+	  HCSR04_Read(SONAR_SENSOR_0);
+	  printf("%d cm\r\n",Distance[0]);
 	  HAL_Delay(200);
   }
   /* USER CODE END 5 */
