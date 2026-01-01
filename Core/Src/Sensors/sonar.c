@@ -9,6 +9,7 @@
 
 #include "sonar.h"
 #include "utils.h"
+#include "cmsis_os.h"
 
 static TIM_HandleTypeDef* SN_htim;
 
@@ -57,9 +58,9 @@ void SONAR_Task_Loop(void const * argument)
 void SONAR_init(TIM_HandleTypeDef *htim)
 {
 	SN_htim = htim;
-	  HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_1);
+	  HAL_TIM_IC_Start(htim, TIM_CHANNEL_1);
 #ifdef DOUBLE_SONAR
-	  HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_2);
+	  HAL_TIM_IC_Start(htim, TIM_CHANNEL_2);
 #endif
 }
 
