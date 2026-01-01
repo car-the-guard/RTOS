@@ -71,8 +71,6 @@ void Error_Handler(void);
 #define SONAR1_TRIGGER_GPIO_Port GPIOF
 #define CRASH_EXTI_Pin GPIO_PIN_13
 #define CRASH_EXTI_GPIO_Port GPIOF
-#define SONAR2_ECHO_Pin GPIO_PIN_15
-#define SONAR2_ECHO_GPIO_Port GPIOF
 #define LD3_Pin GPIO_PIN_14
 #define LD3_GPIO_Port GPIOB
 #define STLK_RX_Pin GPIO_PIN_8
@@ -81,12 +79,14 @@ void Error_Handler(void);
 #define STLK_TX_GPIO_Port GPIOD
 #define BREAK_LED_CS_Pin GPIO_PIN_14
 #define BREAK_LED_CS_GPIO_Port GPIOD
-#define SONAR1_ECHO_Pin GPIO_PIN_15
-#define SONAR1_ECHO_GPIO_Port GPIOD
 #define USB_PowerSwitchOn_Pin GPIO_PIN_6
 #define USB_PowerSwitchOn_GPIO_Port GPIOG
 #define USB_OverCurrent_Pin GPIO_PIN_7
 #define USB_OverCurrent_GPIO_Port GPIOG
+#define SONAR1_ECHO_Pin GPIO_PIN_6
+#define SONAR1_ECHO_GPIO_Port GPIOC
+#define SONAR2_ECHO_Pin GPIO_PIN_7
+#define SONAR2_ECHO_GPIO_Port GPIOC
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
