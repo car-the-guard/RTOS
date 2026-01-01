@@ -54,6 +54,7 @@ UART_HandleTypeDef huart3;
 
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
+osThreadId sonarTaskHandle;
 
 /* USER CODE END PV */
 
@@ -66,6 +67,7 @@ static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM3_Init(void);
 void StartDefaultTask(void const * argument);
+void StartSonarTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -115,7 +117,8 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
+
+  SONAR_init(&htim3);
 
   /* USER CODE END 2 */
 
@@ -139,6 +142,10 @@ int main(void)
   /* definition and creation of defaultTask */
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+  osThreadDef(sonarTask, StartSonarTask, osPriorityNormal, 0, 128);
+  sonarTaskHandle = osThreadCreate(osThread(sonarTask), NULL);
+
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -519,6 +526,19 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 		SONAR_Process_Interrupt(htim);
 	}
 }
+
+void StartSonarTask(void const * argument)
+{
+  /* USER CODE BEGIN StartSonarTask */
+
+	SONAR_Task_Loop(argument);
+
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(1);
+	}
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -532,11 +552,11 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
+  SONAR_Task_Loop(argument);
+
   for(;;)
   {
-	  HCSR04_Read(SONAR_SENSOR_0);
-	  printf("%d cm\r\n",Distance[0]);
-	  HAL_Delay(200);
+	  osDelay(1);
   }
   /* USER CODE END 5 */
 }
