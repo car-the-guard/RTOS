@@ -54,6 +54,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void StartSonarTask(void const * argument);
+void StartGridLEDTask(void const * argument);
 
 /* USER CODE END EFP */
 
@@ -78,8 +79,10 @@ void StartSonarTask(void const * argument);
 #define STLK_RX_GPIO_Port GPIOD
 #define STLK_TX_Pin GPIO_PIN_9
 #define STLK_TX_GPIO_Port GPIOD
-#define BREAK_LED_CS_Pin GPIO_PIN_14
-#define BREAK_LED_CS_GPIO_Port GPIOD
+#define BREAK_LED_CS0_Pin GPIO_PIN_14
+#define BREAK_LED_CS0_GPIO_Port GPIOD
+#define BREAK_LED_CS1_Pin GPIO_PIN_15
+#define BREAK_LED_CS1_GPIO_Port GPIOD
 #define USB_PowerSwitchOn_Pin GPIO_PIN_6
 #define USB_PowerSwitchOn_GPIO_Port GPIOG
 #define USB_OverCurrent_Pin GPIO_PIN_7

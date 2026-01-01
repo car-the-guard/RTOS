@@ -24,9 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "sonar.h"
+#include "grid_led.h"
 
-#include "max7219.h"
-#include "max7219_matrix.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +57,7 @@ UART_HandleTypeDef huart3;
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 osThreadId sonarTaskHandle;
+osThreadId gridLEDTaskHandle;
 
 /* USER CODE END PV */
 
@@ -120,10 +120,9 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-	MAX7219_MatrixInit(&hspi1, BREAK_LED_CS_GPIO_Port, BREAK_LED_CS_Pin);
-	MAX7219_MatrixUpdate();
+  GRIDLED_init(&hspi1);
+  SONAR_init(&htim3);
 
-	SONAR_init(&htim3);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -151,6 +150,9 @@ int main(void)
   /* add threads, ... */
   osThreadDef(sonarTask, StartSonarTask, osPriorityNormal, 0, 128);
   sonarTaskHandle = osThreadCreate(osThread(sonarTask), NULL);
+
+  osThreadDef(gridLEDTask, StartGridLEDTask, osPriorityNormal, 0, 128);
+  gridLEDTaskHandle = osThreadCreate(osThread(gridLEDTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -464,7 +466,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(SONAR0_TRIGGER_GPIO_Port, SONAR0_TRIGGER_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(BREAK_LED_CS_GPIO_Port, BREAK_LED_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, BREAK_LED_CS0_Pin|BREAK_LED_CS1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
@@ -496,12 +498,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(CRASH_EXTI_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : BREAK_LED_CS_Pin */
-  GPIO_InitStruct.Pin = BREAK_LED_CS_Pin;
+  /*Configure GPIO pins : BREAK_LED_CS0_Pin BREAK_LED_CS1_Pin */
+  GPIO_InitStruct.Pin = BREAK_LED_CS0_Pin|BREAK_LED_CS1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(BREAK_LED_CS_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
@@ -531,8 +533,6 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
 void StartSonarTask(void const * argument)
 {
-  /* USER CODE BEGIN StartSonarTask */
-
 	SONAR_Task_Loop(argument);
 
 	/* Infinite loop */
@@ -541,6 +541,18 @@ void StartSonarTask(void const * argument)
 		osDelay(1);
 	}
 }
+
+void StartGridLEDTask(void const * argument)
+{
+	GRIDLED_Task_Loop(argument);
+
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(1);
+	}
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -553,49 +565,10 @@ void StartSonarTask(void const * argument)
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-	MAX7219_MatrixSetRow64(0, CHR('B'));
-	MAX7219_MatrixSetRow64(1, CHR('O'));
-	MAX7219_MatrixSetRow64(2, CHR('M'));
-	MAX7219_MatrixSetRow64(3, CHR('B'));
-	MAX7219_MatrixUpdate();
-	HAL_Delay(3000);
-
-	for(int i = 1000; i >= 0; i--)
+	for(;;)
 	{
-		int temp = (i / 1000) % 10;
-		MAX7219_MatrixSetRow64(0, numbers[temp]);
-		temp = (i / 100) % 10;
-		MAX7219_MatrixSetRow64(1, numbers[temp]);
-		temp = (i / 10) % 10;
-		MAX7219_MatrixSetRow64(2, numbers[temp]);
-		temp = i % 10;
-		MAX7219_MatrixSetRow64(3, numbers[temp]);
-		MAX7219_MatrixUpdate();
-		HAL_Delay(10);
+		osDelay(1);
 	}
-
-	MAX7219_MatrixSetRow64(0, CHR('B'));
-	MAX7219_MatrixSetRow64(1, CHR('A'));
-	MAX7219_MatrixSetRow64(2, CHR('N'));
-	MAX7219_MatrixSetRow64(3, CHR('G'));
-	MAX7219_MatrixUpdate();
-	HAL_Delay(3000);
-
-	for(int i = 0; i < 24; i++)
-	{
-		MAX7219_MatrixLShift(1);
-		MAX7219_MatrixUpdate();
-		HAL_Delay(100);
-	}
-
-	for(int i = 0; i < 24; i++)
-	{
-		MAX7219_MatrixRShift(1);
-		MAX7219_MatrixUpdate();
-		HAL_Delay(100);
-	}
-	HAL_Delay(3000);
   /* USER CODE END 5 */
 }
 

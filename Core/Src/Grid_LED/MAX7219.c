@@ -8,157 +8,101 @@
 #include "MAX7219.h"
 
 SPI_HandleTypeDef* Max7219_SPI;
-GPIO_TypeDef* Max7219_SS_Port;
-uint16_t Max7219_SS_Pin;
 
-static void SS_Select();
-static void SS_Deselect();
+// CS 핀 정보 저장 (Strip 개수만큼)
+GPIO_TypeDef* Max7219_SS_Ports[MAX7219_NUM];
+uint16_t Max7219_SS_Pins[MAX7219_NUM];
+
+static void SS_Select(uint8_t strip_idx);
+static void SS_Deselect(uint8_t strip_idx);
 static bool SPI_Tx(uint8_t data);
 static void DelayInit(void);
 static void DelayUS(uint32_t);
 
-void MAX7219_Init(SPI_HandleTypeDef* spi, GPIO_TypeDef* ss_port, uint16_t ss_pin)
+void MAX7219_Init(SPI_HandleTypeDef* spi, GPIO_TypeDef* ss_ports[], uint16_t ss_pins[])
 {
-	Max7219_SPI = spi;
-	Max7219_SS_Port = ss_port;
-	Max7219_SS_Pin = ss_pin;
+    Max7219_SPI = spi;
+    DelayInit();
 
-	/* Us delay */
-	DelayInit();
-
-	/* Deselect SS */
-	SS_Deselect();
+    for(int i = 0; i < MAX7219_NUM; i++) {
+        Max7219_SS_Ports[i] = ss_ports[i];
+        Max7219_SS_Pins[i] = ss_pins[i];
+        // 초기화: 모든 CS High (선택 해제)
+        HAL_GPIO_WritePin(Max7219_SS_Ports[i], Max7219_SS_Pins[i], GPIO_PIN_SET);
+    }
 }
 
-bool MAX7219_Write(uint8_t index, uint8_t reg, uint8_t data)
+// [핵심 로직] Hybrid 방식: Parallel Select + Daisy Chain Data Shift
+bool MAX7219_Write(uint8_t strip_idx, uint8_t chip_idx, uint8_t reg, uint8_t data)
 {
-	if(index >= MAX7219_IC_NUM) return false;
+    if(strip_idx >= MAX7219_NUM) return false;
+    if(chip_idx >= MAX7219_IC_NUM) return false;
 
-	SS_Select();
+    // 1. 원하는 Strip의 CS 핀만 내림 (Select)
+    SS_Select(strip_idx);
 
-	/* NOOP to following ic */
-	for(int i = index; i < MAX7219_IC_NUM-1; i++)
-	{
-		if(!SPI_Tx(MAX7219_REG_NOOP)) return false;		/* Reg */
-		if(!SPI_Tx(MAX7219_REG_NOOP)) return false;		/* Data */
-	}
+    // 2. 타겟 칩보다 "뒤에 있는" 칩들에게 NO-OP 전송
+    // 예: 4개 중 2번째(idx 1)에 쓰려면, 칩3, 칩2에게 NO-OP을 보내서 밀어줘야 함
+    for(int i = MAX7219_IC_NUM - 1; i > chip_idx; i--)
+    {
+        SPI_Tx(MAX7219_REG_NOOP); // Reg
+        SPI_Tx(0x00);             // Data
+    }
 
-	/* Write register */
-	if(!SPI_Tx(reg)) return false;
-	if(!SPI_Tx(data)) return false;
+    // 3. 타겟 칩에게 진짜 데이터 전송
+    SPI_Tx(reg);
+    SPI_Tx(data);
 
-	/* NOOP to previous ic */
-	for(int i = 0; i < index; i++)
-	{
-		if(!SPI_Tx(MAX7219_REG_NOOP)) return false;		/* Reg */
-		if(!SPI_Tx(MAX7219_REG_NOOP)) return false;		/* Data */
-	}
+    // 4. 타겟 칩보다 "앞에 있는" 칩들에게 NO-OP 전송
+    // 예: 칩 0에게 NO-OP
+    for(int i = 0; i < chip_idx; i++)
+    {
+        SPI_Tx(MAX7219_REG_NOOP);
+        SPI_Tx(0x00);
+    }
 
-	SS_Deselect();
+    // 5. CS 핀 올림 (Latch) - 이때 모든 칩이 데이터를 받아들임
+    SS_Deselect(strip_idx);
 
-	return true;
+    return true;
 }
 
-bool MAX7219_Digit(uint8_t index, uint8_t digit, int8_t value)
-{
-	if(index >= MAX7219_IC_NUM) return false;
-	if(digit > 0x07) return false;
-
-	if(!MAX7219_Write(index, digit+1, value)) return false;
-
-	return true;
+/* 래퍼 함수들 업데이트 */
+bool MAX7219_Digit(uint8_t strip_idx, uint8_t chip_idx, uint8_t digit, uint8_t value){
+	return MAX7219_Write(strip_idx, chip_idx, digit, value); // digit은 1~8 사용
+}
+bool MAX7219_ShutDown(uint8_t strip_idx, uint8_t chip_idx, uint8_t value) {
+    return MAX7219_Write(strip_idx, chip_idx, MAX7219_REG_SHUTDOWN, value);
+}
+bool MAX7219_Test(uint8_t strip_idx, uint8_t chip_idx, uint8_t value) {
+    return MAX7219_Write(strip_idx, chip_idx, MAX7219_REG_TEST, value);
+}
+bool MAX7219_Decode(uint8_t strip_idx, uint8_t chip_idx, uint8_t value) {
+    return MAX7219_Write(strip_idx, chip_idx, MAX7219_REG_DECODE, value);
+}
+bool MAX7219_Intensity(uint8_t strip_idx, uint8_t chip_idx, uint8_t value) {
+    return MAX7219_Write(strip_idx, chip_idx, MAX7219_REG_INTENSITY, value);
+}
+bool MAX7219_ScanLimit(uint8_t strip_idx, uint8_t chip_idx, uint8_t value) {
+    return MAX7219_Write(strip_idx, chip_idx, MAX7219_REG_SCANLIMIT, value);
 }
 
-bool MAX7219_Decode(uint8_t index, uint8_t value)
-{
-	if(index >= MAX7219_IC_NUM) return false;
-
-	if(!MAX7219_Write(index, MAX7219_REG_DECODE, value)) return false;
-
-	return true;
+/* 내부 함수들 */
+static void SS_Select(uint8_t strip_idx) {
+    HAL_GPIO_WritePin(Max7219_SS_Ports[strip_idx], Max7219_SS_Pins[strip_idx], GPIO_PIN_RESET);
 }
 
-bool MAX7219_Intensity(uint8_t index, uint8_t value)
-{
-	if(index >= MAX7219_IC_NUM) return false;
-	if(value > 0x0F) value = 0x0F;
-
-	if(!MAX7219_Write(index, MAX7219_REG_INTENSITY, value)) return false;
-
-	return true;
+static void SS_Deselect(uint8_t strip_idx) {
+    HAL_GPIO_WritePin(Max7219_SS_Ports[strip_idx], Max7219_SS_Pins[strip_idx], GPIO_PIN_SET);
 }
 
-bool MAX7219_ScanLimit(uint8_t index, uint8_t value)
-{
-	if(index >= MAX7219_IC_NUM) return false;
-	if(value > 0x07) value = 0x07;
-
-	if(!MAX7219_Write(index, MAX7219_REG_SCANLIMIT, value)) return false;
-
-	return true;
+static bool SPI_Tx(uint8_t data) {
+    return (HAL_SPI_Transmit(Max7219_SPI, &data, 1, 10) == HAL_OK);
 }
 
-bool MAX7219_ShutDown(uint8_t index, uint8_t value)
-{
-	if(index >= MAX7219_IC_NUM) return false;
-	if(value > 0x01) value = 0x01;
-
-	if(!MAX7219_Write(index, MAX7219_REG_SHUTDOWN, value)) return false;
-
-	return true;
+static void DelayInit(void) {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    DWT->CYCCNT = 0;
 }
-
-bool MAX7219_Test(uint8_t index, uint8_t value)
-{
-	if(index >= MAX7219_IC_NUM) return false;
-	if(value > 0x01) value = 0x01;
-
-	if(!MAX7219_Write(index, MAX7219_REG_TEST, value)) return false;
-
-	return true;
-}
-
-static void SS_Select()
-{
-	HAL_GPIO_WritePin(Max7219_SS_Port, Max7219_SS_Pin, GPIO_PIN_RESET);
-	DelayUS(1);
-}
-
-static void SS_Deselect()
-{
-	HAL_GPIO_WritePin(Max7219_SS_Port, Max7219_SS_Pin, GPIO_PIN_SET);
-	DelayUS(1);
-}
-
-static bool SPI_Tx(uint8_t data)
-{
-	if(HAL_SPI_Transmit(Max7219_SPI, &data, 1, HAL_MAX_DELAY) != HAL_OK) return false;
-	return true;
-}
-
-static void DelayInit(void)
-{
-  CoreDebug->DEMCR &= ~CoreDebug_DEMCR_TRCENA_Msk;
-  CoreDebug->DEMCR |=  CoreDebug_DEMCR_TRCENA_Msk;
-
-  DWT->CTRL &= ~DWT_CTRL_CYCCNTENA_Msk; //~0x00000001;
-  DWT->CTRL |=  DWT_CTRL_CYCCNTENA_Msk; //0x00000001;
-
-  DWT->CYCCNT = 0;
-
-  /* 3 NO OPERATION instructions */
-  __ASM volatile ("NOP");
-  __ASM volatile ("NOP");
-  __ASM volatile ("NOP");
-}
-
-static void DelayUS(uint32_t us) {
-  uint32_t cycles = (SystemCoreClock/1000000L)*us;
-  uint32_t start = DWT->CYCCNT;
-  volatile uint32_t cnt;
-
-  do
-  {
-    cnt = DWT->CYCCNT - start;
-  } while(cnt < cycles);
-}
+static void DelayUS(uint32_t us) { /* 사용 안함 (SPI 속도로 충분) */ }
