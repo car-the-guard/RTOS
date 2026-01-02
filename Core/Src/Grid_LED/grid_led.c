@@ -21,33 +21,35 @@ uint16_t      cs_pins[]  = { BREAK_LED_CS0_Pin,       BREAK_LED_CS1_Pin };
 volatile GridLed_State_t current_led_state = GRID_LED_OFF;
 
 // 화살표 패턴 (8x8)
-const uint8_t arrow_left_bmp[8] = {
-		0b00001111,
-		0b00011110,
-		0b00111100,
-	    0b01111000,
-		0b01111000,
-		0b00111100,
-		0b00011110,
-	    0b00001111
+const uint8_t arrow_bmp[8] = {
+	0b00001111,
+	0b00011110,
+	0b00111100,
+	0b01111000,
+	0b01111000,
+	0b00111100,
+	0b00011110,
+	0b00001111
 };
 
-const uint8_t arrow_right_bmp[8] = {
-	    0b11110000,
-		0b01111000,
-		0b00111100,
-		0b00011110,
-	    0b00011110,
-		0b00111100,
-		0b01111000,
-		0b11110000
-};
+// 헬퍼: 특정 Strip의 모든 칩 화면 지우기
+static void Clear_Strip(uint8_t strip_idx) {
+    for(int c = 0; c < MAX7219_IC_NUM; c++) {
+        for(int r = 0; r < 8; r++) {
+            MAX7219_MatrixSetPixel(strip_idx, c, r, 0x00);
+        }
+    }
+}
+
 
 void GRIDLED_init(SPI_HandleTypeDef* hspi)
 {
     // [수정] 4개의 칩이 달린 2개의 Strip 초기화
     MAX7219_MatrixInit(hspi, cs_ports, cs_pins);
     MAX7219_MatrixUpdate();
+
+    Clear_Strip(0);
+    Clear_Strip(1);
 }
 
 void GRIDLED_Task_Loop(void const * argument)
@@ -84,20 +86,12 @@ static void Shift_Strip1_Right(void) {
     for(int c = 0; c < MAX7219_IC_NUM; c++) {
         for(int r = 0; r < 8; r++) {
             // [Strip 1][Chip c][Row r] 접근
-            uint8_t lsb = (FrameBuffer[1][c][r] & 0x01) ? 0x80 : 0;
-            FrameBuffer[1][c][r] = (FrameBuffer[1][c][r] >> 1) | lsb;
+            uint8_t msb = (FrameBuffer[1][c][r] & 0x80) ? 1 : 0;
+            FrameBuffer[1][c][r] = (FrameBuffer[1][c][r] << 1) | msb;
         }
     }
 }
 
-// 헬퍼: 특정 Strip의 모든 칩 화면 지우기
-static void Clear_Strip(uint8_t strip_idx) {
-    for(int c = 0; c < MAX7219_IC_NUM; c++) {
-        for(int r = 0; r < 8; r++) {
-            MAX7219_MatrixSetPixel(strip_idx, c, r, 0x00);
-        }
-    }
-}
 
 // 헬퍼: 특정 Strip의 모든 칩에 패턴 채우기
 static void Fill_Strip_Pattern(uint8_t strip_idx, const uint8_t* pattern) {
@@ -132,8 +126,9 @@ void GRIDLED_Process(void)
 
         if (current_led_state == GRID_LED_ANIMATE) {
             // 애니메이션 초기 패턴 로드
-            Fill_Strip_Pattern(0, arrow_left_bmp);  // 왼쪽 Strip: 왼쪽 화살표
-            Fill_Strip_Pattern(1, arrow_right_bmp); // 오른쪽 Strip: 오른쪽 화살표
+        	// TODO 주석 수정 필요
+            Fill_Strip_Pattern(0, arrow_bmp);  // 왼쪽 Strip: 왼쪽 화살표
+            Fill_Strip_Pattern(1, arrow_bmp); // 오른쪽 Strip: 오른쪽 화살표
         }
 
         MAX7219_MatrixUpdate();
@@ -175,9 +170,10 @@ void GRIDLED_Process(void)
 
             // Blink 모드일 때는 내용은 꽉 채워둠 (켜졌을 때 보이게)
             if(blink_flag) {
-                 for(int s=0; s<MAX7219_NUM; s++)
-                    Fill_Strip_Pattern(s, arrow_left_bmp); // 예: 화살표 깜빡임
-                 MAX7219_MatrixUpdate();
+
+				Fill_Strip_Pattern(0, arrow_bmp);
+				Fill_Strip_Pattern(1, arrow_bmp);
+				MAX7219_MatrixUpdate();
             }
 
             blink_flag = !blink_flag;
