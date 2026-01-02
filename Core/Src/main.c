@@ -28,6 +28,7 @@
 #include "compass.h"
 #include "accel.h"
 #include "collision.h"
+#include "can.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,6 +64,7 @@ osThreadId gridLEDTaskHandle;
 osThreadId compassTaskHandle;
 osThreadId accelTaskHandle;
 osThreadId collisionTaskHandle;
+osThreadId canTxTaskHandle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,6 +81,8 @@ void StartDefaultTask(void const * argument);
 void StartCompassTask(void const * argument);
 void StartAccelTask(void const * argument);
 void StartCollisionTask(void const * argument);
+void StartCANTxTask(void const * argument);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -147,6 +151,7 @@ int main(void)
   SONAR_init(&htim3);
   COMPASS_init(&hi2c1);
   ACCEL_init(&hi2c1);
+  User_CAN_Init();
 
   // ...
   /* USER CODE END 2 */
@@ -188,6 +193,10 @@ int main(void)
 
   osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 512);
   collisionTaskHandle = osThreadCreate(osThread(collisionTask), NULL);
+
+  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 512);
+  canTxTaskHandle = osThreadCreate(osThread(canTxTask), NULL);
+
 
 
   /* USER CODE END RTOS_THREADS */
@@ -649,6 +658,19 @@ void StartCollisionTask(void const * argument)
             // 후속 처리가 끝나면 루프가 다시 돌면서
             // 다시 WaitForSignal에서 대기 상태로 들어갑니다.
         }
+    }
+}
+
+void StartCANTxTask(void const * argument)
+{
+    // can.c 에 있는 실제 무한 루프 함수 호출
+	CAN_task_loop();
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
     }
 }
 
