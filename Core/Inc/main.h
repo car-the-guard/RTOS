@@ -73,6 +73,7 @@ void StartGridLEDTask(void const * argument);
 #define SONAR0_TRIGGER_GPIO_Port GPIOF
 #define CRASH_EXTI_Pin GPIO_PIN_13
 #define CRASH_EXTI_GPIO_Port GPIOF
+#define CRASH_EXTI_EXTI_IRQn EXTI15_10_IRQn
 #define LD3_Pin GPIO_PIN_14
 #define LD3_GPIO_Port GPIOB
 #define STLK_RX_Pin GPIO_PIN_8
