@@ -25,7 +25,8 @@
 #include <stdio.h>
 #include "sonar.h"
 #include "grid_led.h"
-
+#include "compass.h"
+#include "accel.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +59,8 @@ osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 osThreadId sonarTaskHandle;
 osThreadId gridLEDTaskHandle;
+osThreadId compassTaskHandle;
+osThreadId accelTaskHandle;
 
 /* USER CODE END PV */
 
@@ -72,7 +75,8 @@ static void MX_TIM3_Init(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
-
+void StartCompassTask(void const * argument);
+void StartAccelTask(void const * argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,8 +124,30 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
+  /* USER CODE BEGIN 2 */
+  // --- I2C Scanner Start ---
+  printf("Scanning I2C bus...\r\n");
+  HAL_StatusTypeDef result;
+  uint8_t i;
+  for (i = 1; i < 128; i++)
+  {
+    // 해당 주소로 빈 데이터를 보내서 ACK가 오는지 확인
+    result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 2, 10);
+    if (result == HAL_OK)
+    {
+        printf("Device found at 0x%02X (Write Addr: 0x%02X)\r\n", i, (i << 1));
+    }
+  }
+  printf("Scan complete.\r\n");
+  // --- I2C Scanner End ---
+
+  // ...
+  /* USER CODE END 2 */
+
   GRIDLED_init(&hspi1);
   SONAR_init(&htim3);
+  COMPASS_init(&hi2c1);
+  ACCEL_init(&hi2c1);
 
   /* USER CODE END 2 */
 
@@ -153,6 +179,12 @@ int main(void)
 
   osThreadDef(gridLEDTask, StartGridLEDTask, osPriorityNormal, 0, 128);
   gridLEDTaskHandle = osThreadCreate(osThread(gridLEDTask), NULL);
+
+  osThreadDef(compassTask, StartCompassTask, osPriorityNormal, 0, 512);
+  compassTaskHandle = osThreadCreate(osThread(compassTask), NULL);
+
+//  osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
+//  accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -553,6 +585,31 @@ void StartGridLEDTask(void const * argument)
 	}
 }
 
+void StartCompassTask(void const * argument)
+{
+    // compass.c 에 있는 실제 무한 루프 함수 호출
+	COMPASS_task_loop(argument);
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
+    }
+}
+
+void StartAccelTask(void const * argument)
+{
+    // compass.c 에 있는 실제 무한 루프 함수 호출
+	ACCEL_task_loop(argument);
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
+    }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
