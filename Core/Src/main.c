@@ -27,6 +27,7 @@
 #include "grid_led.h"
 #include "compass.h"
 #include "accel.h"
+#include "collision.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,7 +62,7 @@ osThreadId sonarTaskHandle;
 osThreadId gridLEDTaskHandle;
 osThreadId compassTaskHandle;
 osThreadId accelTaskHandle;
-
+osThreadId collisionTaskHandle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,6 +78,7 @@ void StartDefaultTask(void const * argument);
 /* USER CODE BEGIN PFP */
 void StartCompassTask(void const * argument);
 void StartAccelTask(void const * argument);
+void StartCollisionTask(void const * argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -122,7 +124,6 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI1_Init();
   MX_TIM3_Init();
-  /* USER CODE BEGIN 2 */
 
   /* USER CODE BEGIN 2 */
   // --- I2C Scanner Start ---
@@ -141,14 +142,13 @@ int main(void)
   printf("Scan complete.\r\n");
   // --- I2C Scanner End ---
 
-  // ...
-  /* USER CODE END 2 */
 
   GRIDLED_init(&hspi1);
   SONAR_init(&htim3);
   COMPASS_init(&hi2c1);
   ACCEL_init(&hi2c1);
 
+  // ...
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -185,6 +185,10 @@ int main(void)
 
   osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
   accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
+
+  osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 512);
+  collisionTaskHandle = osThreadCreate(osThread(collisionTask), NULL);
+
 
   /* USER CODE END RTOS_THREADS */
 
@@ -527,7 +531,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : CRASH_EXTI_Pin */
   GPIO_InitStruct.Pin = CRASH_EXTI_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(CRASH_EXTI_GPIO_Port, &GPIO_InitStruct);
 
@@ -550,6 +554,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -611,6 +619,39 @@ void StartAccelTask(void const * argument)
         osDelay(1);
     }
 }
+
+void StartCollisionTask(void const * argument)
+{
+	int32_t debug = 0;
+    // 1. 초기화 (세마포어 생성)
+    COLLISION_Init();
+
+    for(;;)
+    {
+        // 2. 대기 (여기서 멈춤!)
+        // osWaitForever: 충돌이 날 때까지 영원히 잠듭니다.
+        // 이때 CPU는 이 Task를 건너뛰고 다른 Task(나침반, 가속도 등)만 열심히 돌립니다.
+        if (COLLISION_WaitForSignal(osWaitForever) == osOK)
+        {
+            // ====================================================
+            // [3] 충돌 발생 시 깨어나서 실행되는 곳
+            // ====================================================
+            printf("!! CRASH DETECTED !! (Woke up by Semaphore)\r\n");
+
+            /* [빈칸]
+               여기에 충돌 시 실행할 로직을 작성하세요.
+               예: HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 1);
+                   Motor_Stop();
+            */
+            HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+            GRIDLED_SetState((debug++)%4);
+
+            // 후속 처리가 끝나면 루프가 다시 돌면서
+            // 다시 WaitForSignal에서 대기 상태로 들어갑니다.
+        }
+    }
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
