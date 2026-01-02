@@ -65,6 +65,9 @@ osThreadId compassTaskHandle;
 osThreadId accelTaskHandle;
 osThreadId collisionTaskHandle;
 osThreadId canTxTaskHandle;
+
+
+osMessageQId canTxQueueHandle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,7 +131,6 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI1_Init();
   MX_TIM3_Init();
-
   /* USER CODE BEGIN 2 */
   // --- I2C Scanner Start ---
   printf("Scanning I2C bus...\r\n");
@@ -278,11 +280,11 @@ static void MX_CAN1_Init(void)
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 16;
+  hcan1.Init.Prescaler = 6;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_1TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
+  hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
   hcan1.Init.AutoBusOff = DISABLE;
   hcan1.Init.AutoWakeUp = DISABLE;
@@ -655,6 +657,18 @@ void StartCollisionTask(void const * argument)
             HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
             GRIDLED_SetState((debug++)%4);
 
+            static CAN_message_t myData;
+
+            myData.data = 12345;
+            myData.time_ms = HAL_GetTick();
+            myData.reserved = 0;
+            myData.CRC_8 = 0;
+
+            // [V1 문법 적용]
+            // osMessagePut(큐 핸들, 보낼 값(주소), 타임아웃);
+            // 주소를 uint32_t로 캐스팅해서 보내야 합니다.
+            osMessagePut(canTxQueueHandle, (uint32_t)&myData, 0);
+
             // 후속 처리가 끝나면 루프가 다시 돌면서
             // 다시 WaitForSignal에서 대기 상태로 들어갑니다.
         }
@@ -664,7 +678,7 @@ void StartCollisionTask(void const * argument)
 void StartCANTxTask(void const * argument)
 {
     // can.c 에 있는 실제 무한 루프 함수 호출
-	CAN_task_loop();
+	CAN_task_loop(argument);
 
     /* Infinite loop */
     for(;;)

@@ -13,6 +13,7 @@
 
 /* 외부에서 참조할 핸들러 (main.c에 정의되어 있다고 가정) */
 extern CAN_HandleTypeDef hcan1;
+extern osMessageQId canTxQueueHandle; // Gatekeeper용 큐 핸들
 
 typedef struct {
     uint32_t data;      // 4 bytes
@@ -23,6 +24,6 @@ typedef struct {
 
 /* 함수 원형 선언 */
 void User_CAN_Init(void);        // 필터 설정 및 CAN 시작 함수
-void CAN_task_loop(void *argument); // FreeRTOS 태스크 함수
+void CAN_task_loop(void const * argument); // FreeRTOS 태스크 함수
 
 #endif /* INC_CAN_CAN_H_ */
