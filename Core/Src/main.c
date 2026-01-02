@@ -24,6 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "sonar.h"
+#include "grid_led.h"
+#include "compass.h"
+#include "accel.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +58,9 @@ UART_HandleTypeDef huart3;
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 osThreadId sonarTaskHandle;
+osThreadId gridLEDTaskHandle;
+osThreadId compassTaskHandle;
+osThreadId accelTaskHandle;
 
 /* USER CODE END PV */
 
@@ -67,15 +73,15 @@ static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM3_Init(void);
 void StartDefaultTask(void const * argument);
-void StartSonarTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
-
+void StartCompassTask(void const * argument);
+void StartAccelTask(void const * argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(int ch){
+int __io_putchar(uint8_t ch){
 	HAL_UART_Transmit(&huart3, &ch, 1, 1000);
     return ch;
 }
@@ -118,7 +124,30 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
+  /* USER CODE BEGIN 2 */
+  // --- I2C Scanner Start ---
+  printf("Scanning I2C bus...\r\n");
+  HAL_StatusTypeDef result;
+  uint8_t i;
+  for (i = 1; i < 128; i++)
+  {
+    // 해당 주소로 빈 데이터를 보내서 ACK가 오는지 확인
+    result = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(i << 1), 2, 10);
+    if (result == HAL_OK)
+    {
+        printf("Device found at 0x%02X (Write Addr: 0x%02X)\r\n", i, (i << 1));
+    }
+  }
+  printf("Scan complete.\r\n");
+  // --- I2C Scanner End ---
+
+  // ...
+  /* USER CODE END 2 */
+
+  GRIDLED_init(&hspi1);
   SONAR_init(&htim3);
+  COMPASS_init(&hi2c1);
+  ACCEL_init(&hi2c1);
 
   /* USER CODE END 2 */
 
@@ -143,12 +172,20 @@ int main(void)
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
   osThreadDef(sonarTask, StartSonarTask, osPriorityNormal, 0, 128);
   sonarTaskHandle = osThreadCreate(osThread(sonarTask), NULL);
 
+  osThreadDef(gridLEDTask, StartGridLEDTask, osPriorityNormal, 0, 128);
+  gridLEDTaskHandle = osThreadCreate(osThread(gridLEDTask), NULL);
 
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+  osThreadDef(compassTask, StartCompassTask, osPriorityNormal, 0, 512);
+  compassTaskHandle = osThreadCreate(osThread(compassTask), NULL);
+
+  osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
+  accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
+
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -320,7 +357,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -462,7 +499,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(SONAR0_TRIGGER_GPIO_Port, SONAR0_TRIGGER_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(BREAK_LED_CS_GPIO_Port, BREAK_LED_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, BREAK_LED_CS0_Pin|BREAK_LED_CS1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
@@ -494,12 +531,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(CRASH_EXTI_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : BREAK_LED_CS_Pin */
-  GPIO_InitStruct.Pin = BREAK_LED_CS_Pin;
+  /*Configure GPIO pins : BREAK_LED_CS0_Pin BREAK_LED_CS1_Pin */
+  GPIO_InitStruct.Pin = BREAK_LED_CS0_Pin|BREAK_LED_CS1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(BREAK_LED_CS_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
@@ -529,8 +566,6 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
 void StartSonarTask(void const * argument)
 {
-  /* USER CODE BEGIN StartSonarTask */
-
 	SONAR_Task_Loop(argument);
 
 	/* Infinite loop */
@@ -538,6 +573,43 @@ void StartSonarTask(void const * argument)
 	{
 		osDelay(1);
 	}
+}
+
+void StartGridLEDTask(void const * argument)
+{
+	GRIDLED_Task_Loop(argument);
+
+	/* Infinite loop */
+	for(;;)
+	{
+		osDelay(1);
+	}
+}
+
+void StartCompassTask(void const * argument)
+{
+    // compass.c 에 있는 실제 무한 루프 함수 호출
+	COMPASS_task_loop(argument);
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
+    }
+}
+
+void StartAccelTask(void const * argument)
+{
+    // compass.c 에 있는 실제 무한 루프 함수 호출
+	ACCEL_task_loop(argument);
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
+    }
 }
 /* USER CODE END 4 */
 
@@ -551,13 +623,10 @@ void StartSonarTask(void const * argument)
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  SONAR_Task_Loop(argument);
-
-  for(;;)
-  {
-	  osDelay(1);
-  }
+	for(;;)
+	{
+		osDelay(1);
+	}
   /* USER CODE END 5 */
 }
 
