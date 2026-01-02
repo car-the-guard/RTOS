@@ -183,8 +183,9 @@ int main(void)
   osThreadDef(compassTask, StartCompassTask, osPriorityNormal, 0, 512);
   compassTaskHandle = osThreadCreate(osThread(compassTask), NULL);
 
-//  osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
-//  accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
+  osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
+  accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
+
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */

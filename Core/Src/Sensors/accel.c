@@ -1,22 +1,23 @@
 /*
  * accel.c
- *
- *  Created on: Jan 1, 2026
- *      Author: mokta
+ * Created on: Jan 1, 2026
+ * Author: mokta
  */
 
 #include "accel.h"
+#include "FreeRTOS.h" // Critical Section
+#include "task.h"     // Critical Section
 #include <stdio.h>
-
-static I2C_HandleTypeDef *phmpu_i2c;
-MPU6050_Data_t mpuData;
 
 // 레지스터 정의
 #define REG_WHO_AM_I    0x75
 #define REG_PWR_MGMT_1  0x6B
-#define REG_ACCEL_XOUT  0x3B // 여기서부터 14바이트를 연속으로 읽음
+#define REG_ACCEL_XOUT  0x3B // 가속도 데이터 시작 주소
 
-/* accel.c 수정 */
+static I2C_HandleTypeDef *phmpu_i2c;
+
+// [핵심] 내부 전역 변수 (static으로 숨김)
+static AccelData_t g_accel_data = {0, 0, 0, 0.0, 0.0, 0.0};
 
 void ACCEL_init(I2C_HandleTypeDef* hi2c)
 {
@@ -25,94 +26,85 @@ void ACCEL_init(I2C_HandleTypeDef* hi2c)
     uint8_t data = 0;
 
     HAL_Delay(100);
-    printf("\r\n=== MPU6050 Init Start ===\r\n");
+    printf("\r\n=== MPU6050 Init Start (Accel Only) ===\r\n");
 
-    // 1. 연결 확인 (WHO_AM_I 읽기)
     if(HAL_I2C_Mem_Read(phmpu_i2c, MPU6050_ADDR, REG_WHO_AM_I, 1, &check_val, 1, 100) == HAL_OK)
     {
-        // 0x68(정품) 혹은 0x72(호환칩) 모두 허용
         if (check_val == 0x68 || check_val == 0x72)
         {
             printf("Device Found! WHO_AM_I: 0x%02X\r\n", check_val);
 
-            // 2. 칩 깨우기 (매우 중요: 이 코드가 실행되어야 센서가 동작함)
+            // 칩 깨우기
             data = 0x00;
             HAL_I2C_Mem_Write(phmpu_i2c, MPU6050_ADDR, REG_PWR_MGMT_1, 1, &data, 1, 100);
-            printf("MPU6050 Waked Up (Sleep Mode Disabled).\r\n");
+            printf("MPU6050 Waked Up.\r\n");
         }
         else
         {
-            // 경고만 띄우고 강제로 초기화 시도 (선택 사항)
-            printf("WARNING: Unknown Device ID: 0x%02X (Expected: 0x68 or 0x72)\r\n", check_val);
-            printf("Trying to wake up anyway...\r\n");
-
-            data = 0x00;
-            HAL_I2C_Mem_Write(phmpu_i2c, MPU6050_ADDR, REG_PWR_MGMT_1, 1, &data, 1, 100);
-
-            HAL_Delay(10);
+            printf("WARNING: Unknown Device ID: 0x%02X\r\n", check_val);
         }
     }
     else
     {
-        printf("Error! I2C Communication Failed (Check wiring or Pull-up resistors)\r\n");
+        printf("Error! I2C Communication Failed\r\n");
     }
 }
 
 void ACCEL_task_loop(void const * argument)
 {
-    uint8_t buffer[14]; // Accel(6) + Temp(2) + Gyro(6)
+    // [수정] 6바이트만 읽으면 됩니다 (X_H, X_L, Y_H, Y_L, Z_H, Z_L)
+    uint8_t buffer[6];
 
     for(;;)
     {
-        // 14바이트를 한 번에 읽어옵니다. (효율적)
-        if (HAL_I2C_Mem_Read(phmpu_i2c, MPU6050_ADDR, REG_ACCEL_XOUT, 1, buffer, 14, 100) == HAL_OK)
+        // 0x3B번지부터 6바이트 읽기 (Gyro, Temp 건너뜀)
+        if (HAL_I2C_Mem_Read(phmpu_i2c, MPU6050_ADDR, REG_ACCEL_XOUT, 1, buffer, 6, 100) == HAL_OK)
         {
-            // 데이터 결합 (MPU6050은 High Byte가 먼저 옵니다! << 8 | Low)
-            // [중요] 아까 나침반(QMC)과는 반대입니다.
-            mpuData.Accel_X = (int16_t)(buffer[0] << 8 | buffer[1]);
-            mpuData.Accel_Y = (int16_t)(buffer[2] << 8 | buffer[3]);
-            mpuData.Accel_Z = (int16_t)(buffer[4] << 8 | buffer[5]);
+            // 1. Raw 데이터 결합 (Big Endian)
+            int16_t temp_raw_x = (int16_t)(buffer[0] << 8 | buffer[1]);
+            int16_t temp_raw_y = (int16_t)(buffer[2] << 8 | buffer[3]);
+            int16_t temp_raw_z = (int16_t)(buffer[4] << 8 | buffer[5]);
 
-            mpuData.Temp_Raw = (int16_t)(buffer[6] << 8 | buffer[7]);
+            // 2. 물리량 변환 (Local 변수에서 계산 수행)
+            // LSB/g = 16384.0 (기본 설정 ±2g)
+            double temp_ax = temp_raw_x / 16384.0;
+            double temp_ay = temp_raw_y / 16384.0;
+            double temp_az = temp_raw_z / 16384.0;
 
-            mpuData.Gyro_X  = (int16_t)(buffer[8] << 8 | buffer[9]);
-            mpuData.Gyro_Y  = (int16_t)(buffer[10] << 8 | buffer[11]);
-            mpuData.Gyro_Z  = (int16_t)(buffer[12] << 8 | buffer[13]);
+            // ---------------------------------------------------------
+            // [핵심] Critical Section: 전역 변수 업데이트
+            // ---------------------------------------------------------
+            taskENTER_CRITICAL();
 
-            // 물리량 변환 (기본 설정 기준)
-            // Accel: LSB/g = 16384 (±2g range)
-            mpuData.Ax = mpuData.Accel_X / 16384.0;
-            mpuData.Ay = mpuData.Accel_Y / 16384.0;
-            mpuData.Az = mpuData.Accel_Z / 16384.0;
+            g_accel_data.Raw_X = temp_raw_x;
+            g_accel_data.Raw_Y = temp_raw_y;
+            g_accel_data.Raw_Z = temp_raw_z;
+            g_accel_data.Ax = temp_ax;
+            g_accel_data.Ay = temp_ay;
+            g_accel_data.Az = temp_az;
 
-            // Temperature: (Raw / 340.0) + 36.53
-            mpuData.Temperature = (mpuData.Temp_Raw / 340.0f) + 36.53f;
+            taskEXIT_CRITICAL();
+            // ---------------------------------------------------------
 
-            // Gyro: LSB/(deg/s) = 131.0 (±250dps range)
-            mpuData.Gx = mpuData.Gyro_X / 131.0;
-            mpuData.Gy = mpuData.Gyro_Y / 131.0;
-            mpuData.Gz = mpuData.Gyro_Z / 131.0;
-
-            // 출력
-			// [수정된 출력부]
-			// 모든 값을 100배 곱해서 정수로 출력합니다.
-			// 예: 1.00g -> 100, -0.56g -> -56, 24.5도 -> 2450
-			printf("Ax:%d Ay:%d Az:%d | Gx:%d Gy:%d Gz:%d | T:%d\r\n",
-				   (int)(mpuData.Ax * 100),
-				   (int)(mpuData.Ay * 100),
-				   (int)(mpuData.Az * 100),
-				   (int)(mpuData.Gx * 100),
-				   (int)(mpuData.Gy * 100),
-				   (int)(mpuData.Gz * 100),
-				   (int)(mpuData.Temperature * 100));
+            // 디버그 출력 (옵션: 정수형 x100 변환하여 출력)
+             printf("Accel: %d, %d, %d\r\n",
+                    (int)(temp_ax * 100), (int)(temp_ay * 100), (int)(temp_az * 100));
         }
         else
         {
-            printf("[MPU6050] I2C Read Error\r\n");
-            // 에러 시 재초기화 시도 (선택)
-            // MPU6050_Init(phmpu_i2c);
+            // printf("[MPU6050] I2C Read Error\r\n");
         }
 
-        osDelay(1000); // 10Hz
+        osDelay(100); // 10Hz Sampling
     }
+}
+
+void ACCEL_get_data(AccelData_t *pOutData)
+{
+    // 읽는 도중에 값이 변하지 않도록 잠금
+    taskENTER_CRITICAL();
+
+    *pOutData = g_accel_data; // 구조체 복사
+
+    taskEXIT_CRITICAL();
 }

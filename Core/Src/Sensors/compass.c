@@ -133,9 +133,9 @@ void COMPASS_task_loop(void const * argument)
 
             taskEXIT_CRITICAL();
 
-             printf("Curr: %ld.%02ld | Avg(%d s): %ld.%02ld\r\n",
-            		 g_compass_data.heading_int/100, g_compass_data.heading_int%100, (int)EMA_TARGET_AVG_SECOND,
-					 g_compass_data.heading_avg_30s/100, g_compass_data.heading_avg_30s%100);
+//             printf("Curr: %ld.%02ld | Avg(%d s): %ld.%02ld\r\n",
+//            		 g_compass_data.heading_int/100, g_compass_data.heading_int%100, (int)EMA_TARGET_AVG_SECOND,
+//					 g_compass_data.heading_avg_30s/100, g_compass_data.heading_avg_30s%100);
         }
 
         osDelay(100);
