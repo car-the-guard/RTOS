@@ -25,7 +25,7 @@
 #define EMA_ALPHA             1 / (EMA_TARGET_AVG_SECOND * 10)
 
 static I2C_HandleTypeDef *ph_compass_i2c = NULL;
-static CompassGlobal_t g_compass_data = {0, 0, 0, 0, 0};
+static COMPASS_data_t g_compass_data = {0, 0, 0, 0, 0};
 
 // [수정] 배열 대신 누적 평균을 담을 변수 2개만 있으면 됩니다.
 static float avg_vector_x = 0.0f; // 평균 Cos 성분
@@ -142,7 +142,7 @@ void COMPASS_task_loop(void const * argument)
     }
 }
 
-void COMPASS_get_data(CompassGlobal_t *pOutData)
+void COMPASS_get_data(COMPASS_data_t *pOutData)
 {
     taskENTER_CRITICAL();
     *pOutData = g_compass_data;

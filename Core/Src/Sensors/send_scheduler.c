@@ -11,6 +11,7 @@
 #include "can_bridge.h"
 #include "accel.h"
 #include "sonar.h"
+#include "compass.h"
 
 void SCHEDULER_init(void)
 {
@@ -66,10 +67,11 @@ void SCHEDULER_task_loop(void const * argument)
 		   ============================================================ */
 		if ((current_tick - last_compass) >= SCHEDULER_PERIOD_COMPASS_MS)
 		{
-			uint16_t angle = Sensor_Get_Compass_Angle();
+			COMPASS_data_t data;
+			COMPASS_get_data(&data);
 
 			// 나침반 메시지는 보통 1byte 모드+2byte 값이므로 그에 맞춰 보냄
-			Send_Motor_Status(0, angle); // 예시 함수
+			CAN_send_compass((uint16_t)data.heading_avg_30s); // 예시 함수
 
 			last_compass = current_tick;
 		}

@@ -7,6 +7,7 @@
 
 // HC-SR04 초음파 센서를 이용해 거리를 측정하기 위한 코드
 
+#include <stdio.h>
 #include "sonar.h"
 #include "utils.h"
 #include "cmsis_os.h"

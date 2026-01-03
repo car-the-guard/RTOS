@@ -130,6 +130,7 @@ void CAN_task_loop(void const * argument)
                 // 전송이 잘 진행되었다면 pool 할당 해제
                 else
                 {
+                	printf("CAN MESSAGE SEND: %d %X\r\n", TxHeader.StdId, rxPacket->body.field.data);
                 	osPoolFree(CanTxPoolHandle, rxPacket);
                 }
             }

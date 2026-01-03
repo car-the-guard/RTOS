@@ -18,14 +18,14 @@ typedef struct {
 
     int32_t heading_int; // 각도 x 100 (예: 12345 = 123.45도)
     int32_t heading_avg_30s;
-} CompassGlobal_t;
+} COMPASS_data_t;
 
 
 void COMPASS_init(I2C_HandleTypeDef *hi2c);
 void COMPASS_task_loop(void const * argument);
 
 // 외부에서 안전하게 데이터를 복사해가는 함수
-void COMPASS_get_data(CompassGlobal_t *pOutData);
+void COMPASS_get_data(COMPASS_data_t *pOutData);
 
 
 // 이거 어떻게 쓸거냐면
