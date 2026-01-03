@@ -196,13 +196,13 @@ int main(void)
   osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
   accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
 
-  osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 128);
+  osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 512);
   collisionTaskHandle = osThreadCreate(osThread(collisionTask), NULL);
 
-  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 128);
+  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 512);
   canTxTaskHandle = osThreadCreate(osThread(canTxTask), NULL);
 
-  osThreadDef(sendSchedulerTask, StartSendSchedulerTask, osPriorityNormal, 0, 128);
+  osThreadDef(sendSchedulerTask, StartSendSchedulerTask, osPriorityNormal, 0, 512);
   sendSchedulerTaskHandle = osThreadCreate(osThread(sendSchedulerTask), NULL);
 
 
