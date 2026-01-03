@@ -25,8 +25,12 @@ typedef enum {
     SONAR_SENSOR_1 = 1
 } Sonar_ID;
 
+typedef struct {
+	uint16_t dist_0_cm; // 0번 센서 거리
+	uint16_t dist_1_cm; // 1번 센서 거리
+} SONAR_report_t;
 
-extern volatile uint8_t Distance[2];
+//extern volatile uint8_t Distance[2];
 
 void SONAR_init(TIM_HandleTypeDef *htim);
 
@@ -35,5 +39,7 @@ void SONAR_Process_Interrupt(TIM_HandleTypeDef *htim);
 void HCSR04_Read (Sonar_ID);
 
 void SONAR_Task_Loop(void const * argument);
+
+void SONAR_get_data(SONAR_report_t *pOutData);
 
 #endif /* INC_SENSORS_SONAR_H_ */

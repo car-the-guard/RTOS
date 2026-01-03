@@ -11,7 +11,7 @@
 #define DEBOUNCE_DELAY  200
 
 // 세마포어 핸들
-static osSemaphoreId sem_collisionHandle;
+static osSemaphoreId sem_collisionHandle = NULL;
 
 // 디바운싱용 변수
 static volatile uint32_t last_interrupt_time = 0;
@@ -24,6 +24,9 @@ void COLLISION_Init(void)
     osSemaphoreDef(SEM_COLLISION);
     sem_collisionHandle = osSemaphoreCreate(osSemaphore(SEM_COLLISION), 1);
 
+    if(sem_collisionHandle == NULL) {
+    	printf("NONONONO\r\n");
+    }
     // 처음에는 세마포어를 가져가서(Take) '비어있는(Empty)' 상태로 만듦
     // 그래야 Task가 Wait 할 때 바로 잠들 수 있음.
     if (sem_collisionHandle != NULL) {
@@ -48,22 +51,37 @@ BaseType_t COLLISION_WaitForSignal(uint32_t timeout)
 // =============================================================
 // [EXTI ISR] 하드웨어 인터럽트가 발생하면 호출됨
 // =============================================================
+/* stm32fxxx_it.c 상단에 include 필요 */
+#include "FreeRTOS.h"
+#include "semphr.h"  // FreeRTOS 세마포어 헤더
+#include "cmsis_os.h" // osSemaphoreId 정의
+
+// ...
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+    // 문맥 전환 요청 여부를 저장할 변수 (초기값 False)
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
     if (GPIO_Pin == COLLISION_PIN)
     {
         uint32_t current_time = HAL_GetTick();
 
-        // [디바운싱] 너무 잦은 인터럽트 방지
         if ((current_time - last_interrupt_time) > DEBOUNCE_DELAY)
         {
             last_interrupt_time = current_time;
 
-            // [핵심] 세마포어 발송 (Give)
-            // 잠자고 있는 Task에게 "일어날 시간이야!" 라고 신호를 줌
             if (sem_collisionHandle != NULL)
             {
-                osSemaphoreRelease(sem_collisionHandle);
+                /* * [수정] 일반 함수 대신 FromISR 버전 사용
+                 * (SemaphoreHandle_t)로 캐스팅 필요 (CMSIS V1 핸들과 호환됨)
+                 */
+                xSemaphoreGiveFromISR((SemaphoreHandle_t)sem_collisionHandle, &xHigherPriorityTaskWoken);
+
+                /* * [중요] 세마포어를 받고 깨어난 Task가 현재 Task보다 우선순위가 높다면,
+                 * ISR이 끝나는 즉시 그 Task로 화면 전환(Context Switch)을 요청함.
+                 */
+                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             }
         }
     }

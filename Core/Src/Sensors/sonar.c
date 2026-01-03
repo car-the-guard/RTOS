@@ -7,6 +7,7 @@
 
 // HC-SR04 초음파 센서를 이용해 거리를 측정하기 위한 코드
 
+#include <stdio.h>
 #include "sonar.h"
 #include "utils.h"
 #include "cmsis_os.h"
@@ -49,7 +50,7 @@ void SONAR_Task_Loop(void const * argument)
 #endif
 		// (선택) 디버깅 출력
 		// printf는 Thread-safe하지 않을 수 있으니 주의하거나 Mutex 사용 필요
-		printf("SONAR #0: %lu cm, SONAR #1: %lu cm \r\n", Distance[SONAR_SENSOR_0], Distance[SONAR_SENSOR_1]);
+//		printf("SONAR #0: %lu cm, SONAR #1: %lu cm \r\n", Distance[SONAR_SENSOR_0], Distance[SONAR_SENSOR_1]);
 
 		osDelay(sensing_delay);
 	}
@@ -156,3 +157,12 @@ void SONAR_Process_Interrupt(TIM_HandleTypeDef *htim)
 #endif
 }
 
+void SONAR_get_data(SONAR_report_t *pOutData)
+{
+	taskENTER_CRITICAL();
+
+	pOutData->dist_0_cm = Distance[0];
+	pOutData->dist_1_cm = Distance[1];
+
+	taskEXIT_CRITICAL();
+}

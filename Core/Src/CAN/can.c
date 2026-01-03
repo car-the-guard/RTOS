@@ -41,8 +41,8 @@ void CAN_init(void)
 
     // 1. 필터 설정
     sFilterConfig.FilterBank = 0;
-    sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
-    sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
 
     // CAN 에서 ID 11bit -> 16bit 중에서 상위 11bit를 비교를 위해 사용한다
     // 그래서 왼쪽으로 5bit 만큼 Shift가 필요함 + 이렇게 표기하는게 직관적임
@@ -54,6 +54,14 @@ void CAN_init(void)
     // 내가 수신하려는 메시지는 CAN_type_break_led 하나니깐 이거랑 ID가 일치하는지 확인하기
     sFilterConfig.FilterIdHigh = (CAN_type_break_led << 5);
     sFilterConfig.FilterIdLow  = 0x0000;
+
+
+//    sFilterConfig.FilterMaskIdHigh = 0x0000;
+//	sFilterConfig.FilterMaskIdLow  = 0x0000;
+//
+//	// 마스크가 0이면 ID 설정값은 의미가 없지만, 깔끔하게 0으로 초기화합니다.
+//	sFilterConfig.FilterIdHigh = 0x0000;
+//	sFilterConfig.FilterIdLow  = 0x0000;
 
     // 수신 성공하면 CAN_RX_FIFO0 으로 넣기 (
     sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
@@ -130,6 +138,7 @@ void CAN_task_loop(void const * argument)
                 // 전송이 잘 진행되었다면 pool 할당 해제
                 else
                 {
+                	printf("CAN MESSAGE SEND: %d %X\r\n", TxHeader.StdId, rxPacket->body.field.data);
                 	osPoolFree(CanTxPoolHandle, rxPacket);
                 }
             }
