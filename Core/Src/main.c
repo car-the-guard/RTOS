@@ -29,6 +29,8 @@
 #include "accel.h"
 #include "collision.h"
 #include "can.h"
+#include "send_scheduler.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -85,6 +87,7 @@ void StartCompassTask(void const * argument);
 void StartAccelTask(void const * argument);
 void StartCollisionTask(void const * argument);
 void StartCANTxTask(void const * argument);
+void StartSendSchedulerTask(void const * argument);
 
 /* USER CODE END PFP */
 
@@ -671,6 +674,18 @@ void StartCANTxTask(void const * argument)
     }
 }
 
+void StartSendSchedulerTask(void const * argument)
+{
+    // can.c 에 있는 실제 무한 루프 함수 호출
+	SCHEDULER_task_loop(argument);
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
+    }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
