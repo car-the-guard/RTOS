@@ -22,8 +22,19 @@ typedef struct {
     uint8_t  CRC_8;     // 1 byte
 } CAN_message_t;
 
+typedef enum {
+	CAN_type_collision = 0x008,
+	CAN_type_sonar = 0x024,
+	CAN_type_accel = 0x02C,
+	CAN_type_compass = 0x030
+} CAN_tx_message_id;
+
+typedef enum {
+	CAN_type_break_led = 0x048
+} CAN_rx_message_id;
+
 /* 함수 원형 선언 */
-void User_CAN_Init(void);        // 필터 설정 및 CAN 시작 함수
+void CAN_init(void);        // 필터 설정 및 CAN 시작 함수
 void CAN_task_loop(void const * argument); // FreeRTOS 태스크 함수
 
 #endif /* INC_CAN_CAN_H_ */

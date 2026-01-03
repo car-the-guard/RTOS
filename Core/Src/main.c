@@ -153,7 +153,7 @@ int main(void)
   SONAR_init(&htim3);
   COMPASS_init(&hi2c1);
   ACCEL_init(&hi2c1);
-  User_CAN_Init();
+  CAN_init();
 
   // ...
   /* USER CODE END 2 */

@@ -21,7 +21,7 @@ extern osMessageQId canTxQueueHandle;
 /* -------------------------------------------------------------------------
    1. 초기화 및 설정 함수
    ------------------------------------------------------------------------- */
-void User_CAN_Init(void)
+void CAN_init(void)
 {
     // [V1] 큐 정의: V1 큐는 32비트 포인터를 저장합니다.
     // 구조체 자체(8바이트 이상)는 큐에 직접 못 넣으므로 포인터 타입을 명시합니다.
@@ -30,14 +30,23 @@ void User_CAN_Init(void)
 
     CAN_FilterTypeDef sFilterConfig;
 
-    // 1. 필터 설정 (모든 메시지 수신 허용)
+    // 1. 필터 설정
     sFilterConfig.FilterBank = 0;
-    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-    sFilterConfig.FilterIdHigh = 0x0000;
-    sFilterConfig.FilterIdLow = 0x0000;
-    sFilterConfig.FilterMaskIdHigh = 0x0000;
-    sFilterConfig.FilterMaskIdLow = 0x0000;
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDLIST;
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT;
+
+    // CAN 에서 ID 11bit -> 16bit 중에서 상위 11bit를 비교를 위해 사용한다
+    // 그래서 왼쪽으로 5bit 만큼 Shift가 필요함 + 이렇게 표기하는게 직관적임
+
+    // Mask = 내가 확인하려는 bit
+    sFilterConfig.FilterMaskIdHigh = (0x7FF << 5);
+    sFilterConfig.FilterMaskIdLow  = 0x0000;
+
+    // 내가 수신하려는 메시지는 CAN_type_break_led 하나니깐 이거랑 ID가 일치하는지 확인하기
+    sFilterConfig.FilterIdHigh = (CAN_type_break_led << 5);
+    sFilterConfig.FilterIdLow  = 0x0000;
+
+    // 수신 성공하면 CAN_RX_FIFO0 으로 넣기 (
     sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
     sFilterConfig.FilterActivation = ENABLE;
     sFilterConfig.SlaveStartFilterBank = 14;
@@ -118,9 +127,6 @@ void CAN_task_loop(void const * argument) // [V1] 매개변수 타입이 void co
     }
 }
 
-/* -------------------------------------------------------------------------
-   3. 수신(Rx) 인터럽트 콜백 함수
-   ------------------------------------------------------------------------- */
 CAN_message_t rxMsgDebug;
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
