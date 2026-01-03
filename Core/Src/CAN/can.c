@@ -18,11 +18,18 @@ extern CAN_HandleTypeDef hcan1; // main.c 등에서 정의된 핸들 가져오�
 
 extern osMessageQId canTxQueueHandle;
 
+// 메시지큐 관리를 위해서 실제 패킷 정보를 담을 풀을 사용
+osPoolDef(CanTxPool, 16, CAN_queue_pkt_t); // 16개짜리 풀 정의
+osPoolId  CanTxPoolHandle;
+
 /* -------------------------------------------------------------------------
    1. 초기화 및 설정 함수
    ------------------------------------------------------------------------- */
 void CAN_init(void)
 {
+	// 풀 초기화
+	CanTxPoolHandle = osPoolCreate(osPool(CanTxPool));
+
     // [V1] 큐 정의: V1 큐는 32비트 포인터를 저장합니다.
     // 구조체 자체(8바이트 이상)는 큐에 직접 못 넣으므로 포인터 타입을 명시합니다.
     osMessageQDef(CanTxQueue, 10, CAN_message_t*);
@@ -72,56 +79,57 @@ void CAN_init(void)
 /* -------------------------------------------------------------------------
    2. FreeRTOS 송신(Tx) 태스크 - Gatekeeper Implementation
    ------------------------------------------------------------------------- */
-void CAN_task_loop(void const * argument) // [V1] 매개변수 타입이 void const * 입니다.
+void CAN_task_loop(void const * argument)
 {
     CAN_TxHeaderTypeDef TxHeader;
-    uint8_t TxData[8];
     uint32_t TxMailbox;
 
-    // 큐에서 꺼낸 포인터를 받을 변수
-    CAN_message_t *rxMsgPtr;
+    CAN_queue_pkt_t *rxPacket;
 
-    // [V1] 결과를 받기 위한 이벤트 구조체
     osEvent event;
 
-    // CAN Tx 헤더 기본 설정
-    TxHeader.StdId = 0x103;
-    TxHeader.ExtId = 0x01;
-    TxHeader.RTR = CAN_RTR_DATA;
-    TxHeader.IDE = CAN_ID_STD;
-    TxHeader.DLC = 8;
+    // [공통 설정] ID를 제외한 나머지 설정은 고정
+    TxHeader.IDE = CAN_ID_STD;       // Standard ID
+    TxHeader.RTR = CAN_RTR_DATA;     // Data Frame
+    TxHeader.DLC = 8;                // Data Length 8
     TxHeader.TransmitGlobalTime = DISABLE;
 
     for(;;)
     {
-        /* [핵심] 큐 대기 (Blocking) - V1 스타일
-         * osMessageGet은 osEvent 구조체를 반환합니다.
-         */
+        // 1. 큐 대기 (Blocking)
         event = osMessageGet(canTxQueueHandle, osWaitForever);
 
-        // 이벤트가 메시지 도착인지 확인
         if (event.status == osEventMessage)
         {
-            // [V1] 값 꺼내기 (포인터로 형변환)
-            // 주의: 보내는 쪽(Sender)에서도 반드시 '주소'를 보냈어야 합니다.
-            rxMsgPtr = (CAN_message_t *)event.value.p;
+            // 2. 포인터 형변환 (새로운 구조체 타입으로 캐스팅)
+            rxPacket = (CAN_queue_pkt_t *)event.value.p;
 
-            // 1. 데이터 복사 (구조체 -> 배열 직렬화)
-            // rxMsgPtr이 가리키는 유효한 메모리에서 데이터를 가져옵니다.
-            if (rxMsgPtr != NULL) {
-                memcpy(TxData, rxMsgPtr, sizeof(CAN_message_t));
-            }
-
-            // 2. 메일박스 확인
-            while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0)
+            if (rxPacket != NULL)
             {
-                osDelay(1);
-            }
+                TxHeader.StdId = rxPacket->id;
 
-            // 3. 실제 전송
-            if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK)
-            {
-                // 전송 에러 처리
+                // 여기에서 TimeStamp + CRC 계산해야함
+                rxPacket->body.field.time_ms = 0;
+                // CRC 계산
+                rxPacket->body.field.CRC_8 = calculate_CRC8(rxPacket->body.raw, 7);
+
+                // 3. 메일박스 빈 공간 대기
+                while (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0)
+                {
+                    osDelay(1);
+                }
+
+                // 4. 실제 전송
+                if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, rxPacket->body.raw, &TxMailbox) != HAL_OK)
+                {
+                    // 전송 에러 처리 (Error_Handler() 등)
+                	printf("CAN Message Send Failed\r\n");
+                }
+                // 전송이 잘 진행되었다면 pool 할당 해제
+                else
+                {
+                	osPoolFree(CanTxPoolHandle, rxPacket);
+                }
             }
         }
     }
@@ -147,6 +155,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
             printf("DEBUG - CAN RECEIVED : %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
                    RxData[0], RxData[1], RxData[2], RxData[3],
                    RxData[4], RxData[5], RxData[6], RxData[7]);
+
+            switch(RxHeader.StdId >> 5) {
+            case CAN_type_break_led:
+                CAN_receive_led_signal(RxData[0]);
+            	break;
+            default:
+            	break;
+            }
         }
     }
 }

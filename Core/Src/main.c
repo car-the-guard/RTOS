@@ -649,25 +649,8 @@ void StartCollisionTask(void const * argument)
             // ====================================================
             printf("!! CRASH DETECTED !! (Woke up by Semaphore)\r\n");
 
-            /* [빈칸]
-               여기에 충돌 시 실행할 로직을 작성하세요.
-               예: HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 1);
-                   Motor_Stop();
-            */
             HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-            GRIDLED_SetState((debug++)%4);
 
-            static CAN_message_t myData;
-
-            myData.data = 12345;
-            myData.time_ms = HAL_GetTick();
-            myData.reserved = 0;
-            myData.CRC_8 = 0;
-
-            // [V1 문법 적용]
-            // osMessagePut(큐 핸들, 보낼 값(주소), 타임아웃);
-            // 주소를 uint32_t로 캐스팅해서 보내야 합니다.
-            osMessagePut(canTxQueueHandle, (uint32_t)&myData, 0);
 
             // 후속 처리가 끝나면 루프가 다시 돌면서
             // 다시 WaitForSignal에서 대기 상태로 들어갑니다.
