@@ -28,6 +28,7 @@
 #include "compass.h"
 #include "accel.h"
 #include "collision.h"
+#include "can.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,6 +64,10 @@ osThreadId gridLEDTaskHandle;
 osThreadId compassTaskHandle;
 osThreadId accelTaskHandle;
 osThreadId collisionTaskHandle;
+osThreadId canTxTaskHandle;
+
+
+osMessageQId canTxQueueHandle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,6 +84,8 @@ void StartDefaultTask(void const * argument);
 void StartCompassTask(void const * argument);
 void StartAccelTask(void const * argument);
 void StartCollisionTask(void const * argument);
+void StartCANTxTask(void const * argument);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -124,7 +131,6 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI1_Init();
   MX_TIM3_Init();
-
   /* USER CODE BEGIN 2 */
   // --- I2C Scanner Start ---
   printf("Scanning I2C bus...\r\n");
@@ -147,6 +153,7 @@ int main(void)
   SONAR_init(&htim3);
   COMPASS_init(&hi2c1);
   ACCEL_init(&hi2c1);
+  CAN_init();
 
   // ...
   /* USER CODE END 2 */
@@ -188,6 +195,10 @@ int main(void)
 
   osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 512);
   collisionTaskHandle = osThreadCreate(osThread(collisionTask), NULL);
+
+  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 512);
+  canTxTaskHandle = osThreadCreate(osThread(canTxTask), NULL);
+
 
 
   /* USER CODE END RTOS_THREADS */
@@ -269,11 +280,11 @@ static void MX_CAN1_Init(void)
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 16;
+  hcan1.Init.Prescaler = 6;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_1TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
+  hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
   hcan1.Init.AutoBusOff = DISABLE;
   hcan1.Init.AutoWakeUp = DISABLE;
@@ -638,17 +649,25 @@ void StartCollisionTask(void const * argument)
             // ====================================================
             printf("!! CRASH DETECTED !! (Woke up by Semaphore)\r\n");
 
-            /* [빈칸]
-               여기에 충돌 시 실행할 로직을 작성하세요.
-               예: HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 1);
-                   Motor_Stop();
-            */
             HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-            GRIDLED_SetState((debug++)%4);
+
 
             // 후속 처리가 끝나면 루프가 다시 돌면서
             // 다시 WaitForSignal에서 대기 상태로 들어갑니다.
         }
+    }
+}
+
+void StartCANTxTask(void const * argument)
+{
+    // can.c 에 있는 실제 무한 루프 함수 호출
+	CAN_task_loop(argument);
+
+    /* Infinite loop */
+    for(;;)
+    {
+        // 혹시라도 루프를 빠져나오면 여기서 대기
+        osDelay(1);
     }
 }
 
