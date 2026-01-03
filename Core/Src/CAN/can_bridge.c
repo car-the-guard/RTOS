@@ -31,7 +31,10 @@ void CAN_send_sonar(uint16_t distance0, uint16_t distance1)
 	if (pPacket != NULL) {
 		pPacket->id = CAN_type_sonar;
 
-		pPacket->body.field.data.dual_u16.val_A = distance0;
+//		pPacket->body.field.data.dual_u16.val_A = distance0;
+//		pPacket->body.field.data.dual_u16.val_B = distance1;
+
+		pPacket->body.field.data.dual_u16.val_A = 100;
 		pPacket->body.field.data.dual_u16.val_B = distance1;
 
 		osMessagePut(canTxQueueHandle, (uint32_t)pPacket, 0);

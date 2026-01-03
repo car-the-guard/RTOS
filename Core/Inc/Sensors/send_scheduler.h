@@ -9,10 +9,10 @@
 #define INC_SENSORS_SEND_SCHEDULER_H_
 
 /* 센서별 전송 주기 설정 (단위: ms) */
-#define SCHEDULER_PERIOD_COLLISION_MS   50   // 20Hz (긴급)
-#define SCHEDULER_PERIOD_ACCEL_MS       100  // 10Hz
-#define SCHEDULER_PERIOD_SONAR_MS       200  // 5Hz
-#define SCHEDULER_PERIOD_COMPASS_MS     500  // 2Hz (여유)
+#define SCHEDULER_PERIOD_COLLISION_MS   500   // 20Hz (긴급)
+#define SCHEDULER_PERIOD_ACCEL_MS       1000  // 10Hz
+#define SCHEDULER_PERIOD_SONAR_MS       2000  // 5Hz
+#define SCHEDULER_PERIOD_COMPASS_MS     5000  // 2Hz (여유)
 
 /* 스케줄러 루프 주기 (Tick Resolution) */
 #define SCHEDULER_TICK_MS     10   // 10ms마다 검사

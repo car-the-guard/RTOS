@@ -67,7 +67,7 @@ osThreadId compassTaskHandle;
 osThreadId accelTaskHandle;
 osThreadId collisionTaskHandle;
 osThreadId canTxTaskHandle;
-
+osThreadId sendSchedulerTaskHandle;
 
 osMessageQId canTxQueueHandle;
 /* USER CODE END PV */
@@ -196,11 +196,14 @@ int main(void)
   osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
   accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
 
-  osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 512);
+  osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 128);
   collisionTaskHandle = osThreadCreate(osThread(collisionTask), NULL);
 
-  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 512);
+  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 128);
   canTxTaskHandle = osThreadCreate(osThread(canTxTask), NULL);
+
+  osThreadDef(sendSchedulerTask, StartSendSchedulerTask, osPriorityNormal, 0, 128);
+  sendSchedulerTaskHandle = osThreadCreate(osThread(sendSchedulerTask), NULL);
 
 
 

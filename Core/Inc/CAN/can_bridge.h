@@ -15,7 +15,7 @@
 typedef enum {
 	CAN_type_collision = 0x008,
 	CAN_type_sonar = 0x024,
-	CAN_type_accel = 0x02C,
+	CAN_type_accel 		= 0x02C,
 	CAN_type_compass = 0x030
 } CAN_tx_message_id;
 

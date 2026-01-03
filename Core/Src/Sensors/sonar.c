@@ -50,7 +50,7 @@ void SONAR_Task_Loop(void const * argument)
 #endif
 		// (선택) 디버깅 출력
 		// printf는 Thread-safe하지 않을 수 있으니 주의하거나 Mutex 사용 필요
-		printf("SONAR #0: %lu cm, SONAR #1: %lu cm \r\n", Distance[SONAR_SENSOR_0], Distance[SONAR_SENSOR_1]);
+//		printf("SONAR #0: %lu cm, SONAR #1: %lu cm \r\n", Distance[SONAR_SENSOR_0], Distance[SONAR_SENSOR_1]);
 
 		osDelay(sensing_delay);
 	}
