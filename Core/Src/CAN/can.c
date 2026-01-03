@@ -10,6 +10,7 @@
 #include "cmsis_os.h" // CMSIS V1 헤더
 #include <string.h>   // memcpy
 #include <stdio.h>    // printf
+#include "can_bridge.h"
 
 /* -------------------------------------------------------------------------
    전역 변수 및 핸들 정의
@@ -156,13 +157,23 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
                    RxData[0], RxData[1], RxData[2], RxData[3],
                    RxData[4], RxData[5], RxData[6], RxData[7]);
 
-            switch(RxHeader.StdId >> 5) {
-            case CAN_type_break_led:
-                CAN_receive_led_signal(RxData[0]);
-            	break;
-            default:
-            	break;
+            if(Calculate_CRC8(RxData, 7) != RxData[7]) {
+            	printf("CRC Doesn't Match\r\n");
+            	return;
             }
+
+            // (1) Union 변수 선언
+			CAN_payload_t rxPayload;
+
+			// (2) 배열 -> Union 복사 (memcpy가 가장 깔끔함)
+			// RxData의 8바이트를 rxPayload.raw에 그대로 복사하면,
+			// 자동으로 rxPayload.field... 로 접근 가능해짐
+			memcpy(rxPayload.raw, RxData, 8);
+
+			// (3) 소비(Consume) 함수 호출
+			// *주의: 호출할 때는 타입명(CAN_RxHeaderTypeDef)을 적지 않습니다.
+			// RxHeader는 구조체이므로 주소(&)를 넘기는 것이 성능상 유리합니다.
+			CAN_consume_rx_message(&RxHeader, rxPayload);
         }
     }
 }

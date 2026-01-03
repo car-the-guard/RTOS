@@ -27,6 +27,7 @@ void CAN_send_sonar(uint16_t, uint16_t);
 void CAN_send_accel(uint16_t, uint16_t);
 void CAN_send_compass(uint16_t);
 
+void CAN_consume_rx_message(CAN_RxHeaderTypeDef RxHeader, CAN_payload_t payload);
 void CAN_receive_led_signal(uint8_t);
 
 #endif /* INC_CAN_CAN_BRIDGE_H_ */

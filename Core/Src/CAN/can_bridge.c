@@ -65,6 +65,19 @@ void CAN_send_compass(uint16_t heading)
 	}
 }
 
+void CAN_consume_rx_message(CAN_RxHeaderTypeDef RxHeader, CAN_payload_t payload)
+{
+	uint32_t id = RxHeader->StdId;
+
+	switch(id) {
+	case CAN_type_break_led:
+		CAN_receive_led_signal(payload.field.data.u8_val);
+		break;
+	default:
+		break;
+	}
+}
+
 void CAN_receive_led_signal(uint8_t type)
 {
 	GRIDLED_SetState((GridLed_State_t) type);
