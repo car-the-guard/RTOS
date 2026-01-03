@@ -65,7 +65,7 @@ void CAN_send_compass(uint16_t heading)
 	}
 }
 
-void CAN_consume_rx_message(CAN_RxHeaderTypeDef RxHeader, CAN_payload_t payload)
+void CAN_consume_rx_message(CAN_RxHeaderTypeDef* RxHeader, CAN_payload_t payload)
 {
 	uint32_t id = RxHeader->StdId;
 

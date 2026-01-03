@@ -6,11 +6,12 @@
  * Modified for: CMSIS-RTOS V1 Compliance
  */
 
-#include "can.h"
 #include "cmsis_os.h" // CMSIS V1 헤더
 #include <string.h>   // memcpy
 #include <stdio.h>    // printf
+#include "can.h"
 #include "can_bridge.h"
+#include "utils.h"
 
 /* -------------------------------------------------------------------------
    전역 변수 및 핸들 정의
@@ -33,7 +34,7 @@ void CAN_init(void)
 
     // [V1] 큐 정의: V1 큐는 32비트 포인터를 저장합니다.
     // 구조체 자체(8바이트 이상)는 큐에 직접 못 넣으므로 포인터 타입을 명시합니다.
-    osMessageQDef(CanTxQueue, 10, CAN_message_t*);
+    osMessageQDef(CanTxQueue, 10, CAN_queue_pkt_t*);
     canTxQueueHandle = osMessageCreate(osMessageQ(CanTxQueue), NULL);
 
     CAN_FilterTypeDef sFilterConfig;
@@ -136,7 +137,7 @@ void CAN_task_loop(void const * argument)
     }
 }
 
-CAN_message_t rxMsgDebug;
+CAN_payload_t rxMsgDebug;
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
@@ -147,7 +148,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
         if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
         {
-            memcpy(&rxMsgDebug, RxData, sizeof(CAN_message_t));
+            memcpy(&rxMsgDebug, RxData, sizeof(CAN_payload_t));
 
             /* * [주의] ISR 내부에서의 printf 사용
              * 실제 제품 코드에서는 ISR 내 printf 사용을 권장하지 않습니다 (Blocking 유발 가능성).
@@ -157,7 +158,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
                    RxData[0], RxData[1], RxData[2], RxData[3],
                    RxData[4], RxData[5], RxData[6], RxData[7]);
 
-            if(Calculate_CRC8(RxData, 7) != RxData[7]) {
+            if(calculate_CRC8(RxData, 7) != RxData[7]) {
             	printf("CRC Doesn't Match\r\n");
             	return;
             }

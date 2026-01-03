@@ -65,7 +65,7 @@ void GRIDLED_Task_Loop(void const * argument)
 
 void GRIDLED_SetState(GridLed_State_t state)
 {
-	HAL_GPIO_TogglePin(GPIOB, GPIO_Pin_1);
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
     current_led_state = state;
 }
 
