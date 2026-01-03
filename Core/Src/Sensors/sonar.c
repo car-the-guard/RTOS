@@ -156,3 +156,12 @@ void SONAR_Process_Interrupt(TIM_HandleTypeDef *htim)
 #endif
 }
 
+void SONAR_get_data(SONAR_report_t *pOutData)
+{
+	taskENTER_CRITICAL();
+
+	pOutData->dist_0_cm = Distance[0];
+	pOutData->dist_1_cm = Distance[1];
+
+	taskEXIT_CRITICAL();
+}

@@ -10,6 +10,7 @@
 #include "send_scheduler.h"
 #include "can_bridge.h"
 #include "accel.h"
+#include "sonar.h"
 
 void SCHEDULER_init(void)
 {
@@ -51,9 +52,11 @@ void SCHEDULER_task_loop(void const * argument)
 		   ============================================================ */
 		if ((current_tick - last_sonar) >= SCHEDULER_PERIOD_SONAR_MS)
 		{
-			uint16_t dist = Sensor_Get_Sonar_Distance();
+			SONAR_report_t data;
 
-			Send_Sonar(dist);
+			SONAR_get_data(&data);
+
+			CAN_send_sonar(data.dist_0_cm, data.dist_1_cm);
 
 			last_sonar = current_tick;
 		}
