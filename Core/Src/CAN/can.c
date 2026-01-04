@@ -24,6 +24,24 @@ extern osMessageQId canTxQueueHandle;
 osPoolDef(CanTxPool, 16, CAN_queue_pkt_t); // 16개짜리 풀 정의
 osPoolId  CanTxPoolHandle;
 
+
+void Print_Hex_8Bytes(uint8_t *data)
+{
+    // [DEBUG] HEX: 라는 문구와 함께 출력
+    printf("HEX: ");
+
+    for (int i = 0; i < 8; i++)
+    {
+        // %02X 의미:
+        // 0: 빈 자리를 0으로 채움 (예: A -> 0A)
+        // 2: 최소 2자리로 출력
+        // X: 대문자 16진수 (x를 쓰면 소문자 출력)
+        printf("%02X ", data[i]);
+    }
+
+    printf("\r\n");
+}
+
 /* -------------------------------------------------------------------------
    1. 초기화 및 설정 함수
    ------------------------------------------------------------------------- */
@@ -118,8 +136,37 @@ void CAN_task_loop(void const * argument)
             {
                 TxHeader.StdId = rxPacket->id;
 
+                uint8_t temp_byte; // 스왑용 임시 변수
+
                 // 여기에서 TimeStamp + CRC 계산해야함
                 rxPacket->body.field.time_ms = 0;
+
+				temp_byte = rxPacket->body.raw[4];
+				rxPacket->body.raw[4] = rxPacket->body.raw[5];
+				rxPacket->body.raw[5] = temp_byte;
+
+				// Case 1: ID 0x24 -> [0]과 [1] 교환
+				if (TxHeader.StdId == CAN_type_sonar || TxHeader.StdId == CAN_type_compass)
+				{
+					temp_byte = rxPacket->body.raw[0];
+					rxPacket->body.raw[0] = rxPacket->body.raw[1];
+					rxPacket->body.raw[1] = temp_byte;
+				}
+				// Case 2: ID 0x2C -> [0]<->[1] 교환 AND [2]<->[3] 교환
+				else if (TxHeader.StdId == CAN_type_accel)
+				{
+					// 0, 1 교환
+					temp_byte = rxPacket->body.raw[0];
+					rxPacket->body.raw[0] = rxPacket->body.raw[1];
+					rxPacket->body.raw[1] = temp_byte;
+
+					// 2, 3 교환
+					temp_byte = rxPacket->body.raw[2];
+					rxPacket->body.raw[2] = rxPacket->body.raw[3];
+					rxPacket->body.raw[3] = temp_byte;
+				}
+
+
                 // CRC 계산
                 rxPacket->body.field.CRC_8 = calculate_CRC8(rxPacket->body.raw, 7);
 
@@ -138,7 +185,7 @@ void CAN_task_loop(void const * argument)
                 // 전송이 잘 진행되었다면 pool 할당 해제
                 else
                 {
-                	printf("CAN MESSAGE SEND: %d %X\r\n", TxHeader.StdId, rxPacket->body.field.data);
+                	printf("CAN MESSAGE SEND: 0x%03X %d %0X\r\n", TxHeader.StdId, rxPacket->body.field.data.u16_val ,rxPacket->body.field.data);
                 	osPoolFree(CanTxPoolHandle, rxPacket);
                 }
             }
@@ -167,10 +214,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
                    RxData[0], RxData[1], RxData[2], RxData[3],
                    RxData[4], RxData[5], RxData[6], RxData[7]);
 
-            if(calculate_CRC8(RxData, 7) != RxData[7]) {
-            	printf("CRC Doesn't Match\r\n");
-            	return;
-            }
+//            if(calculate_CRC8(RxData, 7) != RxData[7]) {
+//            	printf("CRC Doesn't Match\r\n");
+//            	return;
+//            }
 
             // (1) Union 변수 선언
 			CAN_payload_t rxPayload;

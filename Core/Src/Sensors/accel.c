@@ -143,47 +143,39 @@ void ACCEL_task_loop(void const * argument)
 
 			taskEXIT_CRITICAL();
 
-            // 디버그 출력 (옵션: 정수형 x100 변환하여 출력)
-             printf("Accel: %d, %d, %d\r\n",
-                    (int)(temp_ax * 100), (int)(temp_ay * 100), (int)(temp_az * 100));
+//             디버그 출력 (옵션: 정수형 x100 변환하여 출력)
+//             printf("Accel: %d, %d, %d\r\n",
+//                    (int)(temp_ax * 1000), (int)(temp_ay * 1000), (int)(temp_az * 1000));
         }
         else
         {
             // printf("[MPU6050] I2C Read Error\r\n");
         }
 
-        osDelay(100); // 10Hz Sampling
+        osDelay(1000); // 10Hz Sampling
     }
 }
 
 void ACCEL_get_data(AccelData_report_t *pOutData)
 {
-	// 1. 계산에 사용할 임시 변수 (복사본 저장용)
+	// 1. 계산에 사용할 임시 변수
 	double temp_Ax;
 	double temp_Avg_Ax;
 
-	/* ============================================================
-	 * [Critical Section 진입]
-	 * 여기서는 최대한 빨리 "값 복사"만 하고 빠져나와야 합니다.
-	 * 인터럽트가 잠겨있는 시간을 최소화하기 위함입니다.
-	 * ============================================================ */
+	/* [Critical Section] 공유 자원 복사 */
 	taskENTER_CRITICAL();
-
 	temp_Ax     = g_accel_data.Ax;
 	temp_Avg_Ax = g_accel_data.Avg_Ax;
-
 	taskEXIT_CRITICAL();
-	/* ============================================================
-	 * [Critical Section 탈출]
-	 * 이제 인터럽트가 다시 동작하므로, 시간이 걸리는 연산을 해도 안전합니다.
-	 * ============================================================ */
 
-	// 2. 형식 변환 및 연산 수행 (g -> m/s^2 -> x1000)
-	// 소수점 연산은 여기서 수행됩니다.
+	// 2. 형식 변환 (double -> int16_t)
+	// 수신 측에서 int16_t로 읽을 것이므로, 먼저 부호 있는 정수형으로 변환합니다.
+	// round() 함수 등을 사용하여 반올림 처리를 추가하면 정밀도가 더 좋아집니다.
 	int16_t conv_inst = (int16_t)(temp_Ax * GRAVITY_MSS_SCALE);
 	int16_t conv_avg  = (int16_t)(temp_Avg_Ax * GRAVITY_MSS_SCALE);
 
-	// 3. 결과 구조체에 대입 (int16_t -> uint16_t 비트 유지 캐스팅)
+	// 3. 결과 구조체 대입 (int16_t의 비트 패턴을 uint16_t에 그대로 저장)
+	// 수신 측에서는 (int16_t)pOutData->instant_Ax 로 캐스팅하여 원래의 음수/양수 값을 복원합니다.
 	pOutData->instant_Ax = (uint16_t)conv_inst;
 	pOutData->avg_Ax     = (uint16_t)conv_avg;
 }

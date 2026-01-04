@@ -21,7 +21,7 @@ static uint32_t SN1_IC_Val_2 = 0;
 static uint32_t SN1_difference = 0;
 static uint8_t SN1_is_first_captured = 0;  // is the first value captured ?
 
-uint32_t sensing_delay = 1000;
+uint32_t sensing_delay = 100;
 
 #ifdef DOUBLE_SONAR
 static uint32_t SN2_IC_val_1 = 0;

@@ -653,10 +653,10 @@ void StartCollisionTask(void const * argument)
             // ====================================================
             // [3] 충돌 발생 시 깨어나서 실행되는 곳
             // ====================================================
-            printf("!! CRASH DETECTED !! (Woke up by Semaphore)\r\n");
+            printf("!! CRASH DETECTED !!\r\n");
 
             HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-
+            CAN_send_collision();
 
             // 후속 처리가 끝나면 루프가 다시 돌면서
             // 다시 WaitForSignal에서 대기 상태로 들어갑니다.

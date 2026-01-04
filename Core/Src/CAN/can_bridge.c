@@ -47,7 +47,7 @@ void CAN_send_accel(uint16_t accel_moment, uint16_t accel_filtered)
 
 		pPacket->body.field.data.dual_u16.val_A = accel_moment;
 		pPacket->body.field.data.dual_u16.val_B = accel_filtered;
-
+//		printf("accel : %d %d\r\n", accel_moment, accel_filtered);
 		osMessagePut(canTxQueueHandle, (uint32_t)pPacket, 0);
 	}
 }
@@ -60,6 +60,8 @@ void CAN_send_compass(uint16_t heading)
 		pPacket->id = CAN_type_compass;
 
 		pPacket->body.field.data.u16_val = heading;
+
+		printf("compass : %d\r\n", heading);
 
 		osMessagePut(canTxQueueHandle, (uint32_t)pPacket, 0);
 	}
