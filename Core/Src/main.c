@@ -573,7 +573,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 10, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -653,7 +653,6 @@ void StartCollisionTask(void const * argument)
             // ====================================================
             // [3] 충돌 발생 시 깨어나서 실행되는 곳
             // ====================================================
-            printf("!! CRASH DETECTED !!\r\n");
 
             HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
             CAN_send_collision();

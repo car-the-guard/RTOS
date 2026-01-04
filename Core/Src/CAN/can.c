@@ -185,9 +185,12 @@ void CAN_task_loop(void const * argument)
                 // 전송이 잘 진행되었다면 pool 할당 해제
                 else
                 {
-                	printf("CAN MESSAGE SEND: 0x%03X %d %0X\r\n", TxHeader.StdId, rxPacket->body.field.data.u16_val ,rxPacket->body.field.data);
-                	osPoolFree(CanTxPoolHandle, rxPacket);
+                	printf("CAN MESSAGE SEND: 0x%03X ", TxHeader.StdId);
+                	Print_Hex_8Bytes(rxPacket->body.raw);
+
                 }
+            	memset(rxPacket->body.raw, 0, 8);
+            	osPoolFree(CanTxPoolHandle, rxPacket);
             }
         }
     }
@@ -210,8 +213,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
              * 실제 제품 코드에서는 ISR 내 printf 사용을 권장하지 않습니다 (Blocking 유발 가능성).
              * 디버깅용으로만 사용하시고, 추후 삭제를 권장합니다.
              */
-            printf("DEBUG - CAN RECEIVED : %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-                   RxData[0], RxData[1], RxData[2], RxData[3],
+            printf("DEBUG - CAN RECEIVED : %03X - %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+                   RxHeader.StdId, RxData[0], RxData[1], RxData[2], RxData[3],
                    RxData[4], RxData[5], RxData[6], RxData[7]);
 
 //            if(calculate_CRC8(RxData, 7) != RxData[7]) {
