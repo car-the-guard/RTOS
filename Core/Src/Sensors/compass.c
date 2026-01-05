@@ -3,6 +3,7 @@
 #include "compass.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "cmsis_os.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -67,78 +68,80 @@ void COMPASS_task_loop(void const * argument)
 
     for(;;)
     {
-        if (HAL_I2C_Mem_Read(ph_compass_i2c, QMC5883P_ADDR_READ, REG_DATA_START, I2C_MEMADD_SIZE_8BIT, buffer, 6, 100) == HAL_OK)
-        {
-            int16_t raw_x = (int16_t)((buffer[1] << 8) | buffer[0]);
-            int16_t raw_y = (int16_t)((buffer[3] << 8) | buffer[2]);
-            int16_t raw_z = (int16_t)((buffer[5] << 8) | buffer[4]);
+    	// 지자기 센서는 우선 mock 데이터를 사용
+//        if (HAL_I2C_Mem_Read(ph_compass_i2c, QMC5883P_ADDR_READ, REG_DATA_START, I2C_MEMADD_SIZE_8BIT, buffer, 6, 100) == HAL_OK)
+//        {
+//            int16_t raw_x = (int16_t)((buffer[1] << 8) | buffer[0]);
+//            int16_t raw_y = (int16_t)((buffer[3] << 8) | buffer[2]);
+//            int16_t raw_z = (int16_t)((buffer[5] << 8) | buffer[4]);
+//
+//            if (raw_x == 0 && raw_y == 0) { osDelay(10); continue; }
+//
+//            // 1. Min/Max 갱신 및 오프셋 계산 (동일)
+//            if (raw_x < x_min) x_min = raw_x; if (raw_x > x_max) x_max = raw_x;
+//            if (raw_y < y_min) y_min = raw_y; if (raw_y > y_max) y_max = raw_y;
+//
+//            offset_x = (int32_t)(x_max + x_min) / 2;
+//            offset_y = (int32_t)(y_max + y_min) / 2;
+//
+//            int32_t cal_x = (int32_t)raw_x - offset_x;
+//            int32_t cal_y = (int32_t)raw_y - offset_y;
+//
+//            // --------------------------------------------------------
+//            // [계산 Zone] Critical Section 밖에서 무거운 연산 수행
+//            // --------------------------------------------------------
+//
+//            // (1) 현재 각도 벡터 계산
+//            double current_rad = atan2((double)cal_y, (double)cal_x);
+//            float current_cos = (float)cos(current_rad); // X 성분 (Unit Vector)
+//            float current_sin = (float)sin(current_rad); // Y 성분 (Unit Vector)
+//
+//            // (2) EMA (지수 이동 평균) 계산 - 여기가 핵심!
+//            // 공식: Avg = (Old_Avg * (1 - Alpha)) + (New_Val * Alpha)
+//            if (is_first_sample)
+//            {
+//                // 첫 데이터는 바로 평균값으로 설정 (초기 지연 방지)
+//                avg_vector_x = current_cos;
+//                avg_vector_y = current_sin;
+//                is_first_sample = 0;
+//            }
+//            else
+//            {
+//                // 벡터 X, Y 각각에 대해 필터링 적용
+//                avg_vector_x = (avg_vector_x * (1.0f - EMA_ALPHA)) + (current_cos * EMA_ALPHA);
+//                avg_vector_y = (avg_vector_y * (1.0f - EMA_ALPHA)) + (current_sin * EMA_ALPHA);
+//            }
+//
+//            // (3) 평균 벡터 -> 각도 변환
+//            double avg_rad = atan2((double)avg_vector_y, (double)avg_vector_x);
+//
+//            // (4) Radian -> Degree -> Int 변환 준비
+//            if (current_rad < 0) current_rad += 2 * M_PI;
+//            if (avg_rad < 0) avg_rad += 2 * M_PI;
+//
+//            int32_t final_curr = (int32_t)(current_rad * (180.0 / M_PI) * 100.0);
+//            int32_t final_avg  = (int32_t)(avg_rad * (180.0 / M_PI) * 100.0);
+//
+//            // --------------------------------------------------------
+//            // [대입 Zone] Critical Section: 값 복사만 수행
+//            // --------------------------------------------------------
+//            taskENTER_CRITICAL();
+//
+//            g_compass_data.raw_x = raw_x;
+//            g_compass_data.raw_y = raw_y;
+//            g_compass_data.raw_z = raw_z;
+//            g_compass_data.heading_int = final_curr;    // 순간값
+//            g_compass_data.heading_avg_30s = final_avg; // 30초 필터값
+//
+//            taskEXIT_CRITICAL();
+//
+//        }
 
-            if (raw_x == 0 && raw_y == 0) { osDelay(10); continue; }
+    	g_compass_data.heading_int = (15 + g_compass_data.heading_int) % 360;    // 순간값
+		g_compass_data.heading_avg_30s = (15 + g_compass_data.heading_avg_30s) % 360; // 30초 필터값
 
-            // 1. Min/Max 갱신 및 오프셋 계산 (동일)
-            if (raw_x < x_min) x_min = raw_x; if (raw_x > x_max) x_max = raw_x;
-            if (raw_y < y_min) y_min = raw_y; if (raw_y > y_max) y_max = raw_y;
 
-            offset_x = (int32_t)(x_max + x_min) / 2;
-            offset_y = (int32_t)(y_max + y_min) / 2;
-
-            int32_t cal_x = (int32_t)raw_x - offset_x;
-            int32_t cal_y = (int32_t)raw_y - offset_y;
-
-            // --------------------------------------------------------
-            // [계산 Zone] Critical Section 밖에서 무거운 연산 수행
-            // --------------------------------------------------------
-
-            // (1) 현재 각도 벡터 계산
-            double current_rad = atan2((double)cal_y, (double)cal_x);
-            float current_cos = (float)cos(current_rad); // X 성분 (Unit Vector)
-            float current_sin = (float)sin(current_rad); // Y 성분 (Unit Vector)
-
-            // (2) EMA (지수 이동 평균) 계산 - 여기가 핵심!
-            // 공식: Avg = (Old_Avg * (1 - Alpha)) + (New_Val * Alpha)
-            if (is_first_sample)
-            {
-                // 첫 데이터는 바로 평균값으로 설정 (초기 지연 방지)
-                avg_vector_x = current_cos;
-                avg_vector_y = current_sin;
-                is_first_sample = 0;
-            }
-            else
-            {
-                // 벡터 X, Y 각각에 대해 필터링 적용
-                avg_vector_x = (avg_vector_x * (1.0f - EMA_ALPHA)) + (current_cos * EMA_ALPHA);
-                avg_vector_y = (avg_vector_y * (1.0f - EMA_ALPHA)) + (current_sin * EMA_ALPHA);
-            }
-
-            // (3) 평균 벡터 -> 각도 변환
-            double avg_rad = atan2((double)avg_vector_y, (double)avg_vector_x);
-
-            // (4) Radian -> Degree -> Int 변환 준비
-            if (current_rad < 0) current_rad += 2 * M_PI;
-            if (avg_rad < 0) avg_rad += 2 * M_PI;
-
-            int32_t final_curr = (int32_t)(current_rad * (180.0 / M_PI) * 100.0);
-            int32_t final_avg  = (int32_t)(avg_rad * (180.0 / M_PI) * 100.0);
-
-            // --------------------------------------------------------
-            // [대입 Zone] Critical Section: 값 복사만 수행
-            // --------------------------------------------------------
-            taskENTER_CRITICAL();
-
-            g_compass_data.raw_x = raw_x;
-            g_compass_data.raw_y = raw_y;
-            g_compass_data.raw_z = raw_z;
-            g_compass_data.heading_int = final_curr;    // 순간값
-            g_compass_data.heading_avg_30s = final_avg; // 30초 필터값
-
-            taskEXIT_CRITICAL();
-
-//             printf("Curr: %ld.%02ld | Avg(%d s): %ld.%02ld\r\n",
-//            		 g_compass_data.heading_int/100, g_compass_data.heading_int%100, (int)EMA_TARGET_AVG_SECOND,
-//					 g_compass_data.heading_avg_30s/100, g_compass_data.heading_avg_30s%100);
-        }
-
-        osDelay(100);
+        osDelay(30000);
     }
 }
 
