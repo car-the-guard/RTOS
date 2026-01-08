@@ -180,15 +180,15 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+//  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+//  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   osThreadDef(sonarTask, StartSonarTask, osPriorityNormal, 0, 128);
   sonarTaskHandle = osThreadCreate(osThread(sonarTask), NULL);
 
-  osThreadDef(gridLEDTask, StartGridLEDTask, osPriorityNormal, 0, 128);
+  osThreadDef(gridLEDTask, StartGridLEDTask, osPriorityLow, 0, 128);
   gridLEDTaskHandle = osThreadCreate(osThread(gridLEDTask), NULL);
 
   osThreadDef(compassTask, StartCompassTask, osPriorityNormal, 0, 512);
@@ -197,13 +197,13 @@ int main(void)
   osThreadDef(accelTask, StartAccelTask, osPriorityNormal, 0, 512);
   accelTaskHandle = osThreadCreate(osThread(accelTask), NULL);
 
-  osThreadDef(collisionTask, StartCollisionTask, osPriorityNormal, 0, 512);
+  osThreadDef(collisionTask, StartCollisionTask, osPriorityHigh, 0, 512);
   collisionTaskHandle = osThreadCreate(osThread(collisionTask), NULL);
 
-  osThreadDef(canTxTask, StartCANTxTask, osPriorityNormal, 0, 512);
+  osThreadDef(canTxTask, StartCANTxTask, osPriorityAboveNormal, 0, 512);
   canTxTaskHandle = osThreadCreate(osThread(canTxTask), NULL);
 
-  osThreadDef(sendSchedulerTask, StartSendSchedulerTask, osPriorityNormal, 0, 512);
+  osThreadDef(sendSchedulerTask, StartSendSchedulerTask, osPriorityAboveNormal, 0, 512);
   sendSchedulerTaskHandle = osThreadCreate(osThread(sendSchedulerTask), NULL);
 
 
