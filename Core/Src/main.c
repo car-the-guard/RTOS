@@ -30,6 +30,7 @@
 #include "collision.h"
 #include "can.h"
 #include "send_scheduler.h"
+#include "can_bridge.h"
 
 /* USER CODE END Includes */
 

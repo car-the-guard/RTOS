@@ -23,6 +23,8 @@ static uint8_t SN1_is_first_captured = 0;  // is the first value captured ?
 
 uint32_t sensing_delay = 100;
 
+static const float alpha = 0.25f;
+
 #ifdef DOUBLE_SONAR
 static uint32_t SN2_IC_val_1 = 0;
 static uint32_t SN2_IC_Val_2 = 0;
@@ -87,73 +89,73 @@ void HCSR04_Read (Sonar_ID sensor_id)
 
 void SONAR_Process_Interrupt(TIM_HandleTypeDef *htim)
 {
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)  // if the interrupt source is channel1
-	{
-		if (SN1_is_first_captured==0) // if the first value is not captured
-		{
-			SN1_IC_val_1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read the first value
-			SN1_is_first_captured = 1;  // set the first captured as true
-			// Now change the polarity to falling edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-		}
+    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+        if (SN1_is_first_captured == 0)
+        {
+            SN1_IC_val_1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            SN1_is_first_captured = 1;
+            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+        }
+        else
+        {
+            SN1_IC_Val_2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
 
-		else if (SN1_is_first_captured==1)   // if the first is already captured
-		{
-			SN1_IC_Val_2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);  // read second value
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
+            if (SN1_IC_Val_2 > SN1_IC_val_1) SN1_difference = SN1_IC_Val_2 - SN1_IC_val_1;
+            else SN1_difference = (0xffff - SN1_IC_val_1) + SN1_IC_Val_2;
 
-			if (SN1_IC_Val_2 > SN1_IC_val_1)
-			{
-				SN1_difference = SN1_IC_Val_2-SN1_IC_val_1;
-			}
+            float dist_raw = (float)SN1_difference * 0.034f / 2.0f;
 
-			else if (SN1_IC_val_1 > SN1_IC_Val_2)
-			{
-				SN1_difference = (0xffff - SN1_IC_val_1) + SN1_IC_Val_2;
-			}
+            // 1. 유효 범위 필터 (2cm 미만이나 400cm 이상은 무시)
+            if (dist_raw > 2.0f && dist_raw < 400.0f)
+            {
+                // 2. 가중치 평균(EMA) 적용
+                // Distance[0]에 저장된 이전 값을 기반으로 새 값을 계산합니다.
+                float prev_dist = (float)Distance[0];
 
-			Distance[0] = SN1_difference * .034/2;
-			SN1_is_first_captured = 0; // set it back to false
+                // 처음 실행 시 Distance[0]이 0이면 초기값으로 dist_raw를 강제 설정 (반응 지연 방지)
+                if (prev_dist == 0) prev_dist = dist_raw;
 
-			// set polarity to rising edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-			__HAL_TIM_DISABLE_IT(SN_htim, TIM_IT_CC1);
-		}
-	}
+                Distance[0] = (uint8_t)((alpha * dist_raw) + ((1.0f - alpha) * prev_dist));
+            }
+
+            SN1_is_first_captured = 0;
+            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+            __HAL_TIM_DISABLE_IT(SN_htim, TIM_IT_CC1);
+        }
+    }
+
 #ifdef DOUBLE_SONAR
-	else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)  // if the interrupt source is channel1
-	{
-		if (SN2_is_first_captured==0) // if the first value is not captured
-		{
-			SN2_IC_val_1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read the first value
-			SN2_is_first_captured = 1;  // set the first captured as true
-			// Now change the polarity to falling edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
-		}
+    else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
+    {
+        if (SN2_is_first_captured == 0)
+        {
+            SN2_IC_val_1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+            SN2_is_first_captured = 1;
+            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
+        }
+        else
+        {
+            SN2_IC_Val_2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
 
-		else if (SN2_is_first_captured==1)   // if the first is already captured
-		{
-			SN2_IC_Val_2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);  // read second value
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
+            if (SN2_IC_Val_2 > SN2_IC_val_1) SN2_difference = SN2_IC_Val_2 - SN2_IC_val_1;
+            else SN2_difference = (0xffff - SN2_IC_val_1) + SN2_IC_Val_2;
 
-			if (SN2_IC_Val_2 > SN2_IC_val_1)
-			{
-				SN2_difference = SN2_IC_Val_2-SN2_IC_val_1;
-			}
+            float dist_raw = (float)SN2_difference * 0.034f / 2.0f;
 
-			else if (SN2_IC_val_1 > SN2_IC_Val_2)
-			{
-				SN2_difference = (0xffff - SN2_IC_val_1) + SN2_IC_Val_2;
-			}
+            if (dist_raw > 2.0f && dist_raw < 400.0f)
+            {
+                float prev_dist = (float)Distance[1];
+                if (prev_dist == 0) prev_dist = dist_raw;
 
-			Distance[1] = SN2_difference * .034/2;
-			SN2_is_first_captured = 0; // set it back to false
+                Distance[1] = (uint8_t)((alpha * dist_raw) + ((1.0f - alpha) * prev_dist));
+            }
 
-			// set polarity to rising edge
-			__HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
-			__HAL_TIM_DISABLE_IT(SN_htim, TIM_IT_CC2);
-		}
-	}
+            SN2_is_first_captured = 0;
+            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+            __HAL_TIM_DISABLE_IT(SN_htim, TIM_IT_CC2);
+        }
+    }
 #endif
 }
 

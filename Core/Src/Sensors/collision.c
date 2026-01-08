@@ -25,7 +25,7 @@ void COLLISION_Init(void)
     sem_collisionHandle = osSemaphoreCreate(osSemaphore(SEM_COLLISION), 1);
 
     if(sem_collisionHandle == NULL) {
-    	printf("NONONONO\r\n");
+    	printf("NO Sema\r\n");
     }
     // 처음에는 세마포어를 가져가서(Take) '비어있는(Empty)' 상태로 만듦
     // 그래야 Task가 Wait 할 때 바로 잠들 수 있음.

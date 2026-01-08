@@ -65,16 +65,16 @@ void SCHEDULER_task_loop(void const * argument)
 		/* ============================================================
 		   [센서 4] 나침반 센서 (주기: 500ms)
 		   ============================================================ */
-//		if ((current_tick - last_compass) >= SCHEDULER_PERIOD_COMPASS_MS)
-//		{
-//			COMPASS_data_t data;
-//			COMPASS_get_data(&data);
-//
-//			// 나침반 메시지는 보통 1byte 모드+2byte 값이므로 그에 맞춰 보냄
-//			CAN_send_compass((uint16_t)data.heading_avg_30s); // 예시 함수
-//
-//			last_compass = current_tick;
-//		}
+		if ((current_tick - last_compass) >= SCHEDULER_PERIOD_COMPASS_MS)
+		{
+			COMPASS_data_t data;
+			COMPASS_get_data(&data);
+
+			// 나침반 메시지는 보통 1byte 모드+2byte 값이므로 그에 맞춰 보냄
+			CAN_send_compass((uint16_t)data.heading_avg_30s); // 예시 함수
+
+			last_compass = current_tick;
+		}
 
 		/* ============================================================
 		   [중요] CPU 양보 (Context Switch)

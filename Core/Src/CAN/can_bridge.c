@@ -61,7 +61,7 @@ void CAN_send_compass(uint16_t heading)
 
 		pPacket->body.field.data.u16_val = heading;
 
-		printf("compass : %d\r\n", heading);
+//		printf("compass : %d\r\n", heading);
 
 		osMessagePut(canTxQueueHandle, (uint32_t)pPacket, 0);
 	}
